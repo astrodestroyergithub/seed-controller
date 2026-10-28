@@ -139,7 +139,8 @@ CREATE TABLE IF NOT EXISTS sc_self_touching_records (
 -- Evaluates strictly to: 'November Not Over Yet', 'Failed', or 'Success'
 CREATE OR REPLACE VIEW sc_nnn_yearly_status_view AS
 WITH years AS (
-    SELECT generate_series(2023, 2027) AS challenge_year
+    -- YEAR RANGE CHANGES
+    SELECT generate_series(2020, EXTRACT(YEAR FROM CURRENT_DATE)::int + 5) AS challenge_year
 ),
 profile_years AS (
     SELECT p.profile_key, p.display_name, y.challenge_year

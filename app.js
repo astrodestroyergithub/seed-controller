@@ -2148,10 +2148,10 @@ function buildSeededMultiProfileData() {
 
     // Multi-year NNN Daily Survival Matrix per profile
     const nnnDailyByProfile = {
-        default_monk: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} },
-        spartan_arjun: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} },
-        vedic_sage_108: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} },
-        neophyte_seeker: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} }
+        default_monk: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} },
+        spartan_arjun: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} },
+        vedic_sage_108: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} },
+        neophyte_seeker: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} }
     };
 
     // default_monk: 2023 Success (30/30), 2024 Failed (Day 11), 2025 Success (30/30), 2026 (Days 1-14 clean/danger)
@@ -2265,7 +2265,7 @@ function ensureMultiProfileStructures() {
             if (!appState.nnnDailyByProfile[pk]) {
                 appState.nnnDailyByProfile[pk] = seeded.nnnDailyByProfile[pk];
             } else {
-                [2023, 2024, 2025, 2026, 2027].forEach((yr) => {
+                [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031].forEach((yr) => {
                     if (!appState.nnnDailyByProfile[pk][yr]) {
                         appState.nnnDailyByProfile[pk][yr] = seeded.nnnDailyByProfile[pk][yr] || {};
                     }
@@ -2294,7 +2294,7 @@ function ensureMultiProfileStructures() {
         };
     }
     if (!appState.nnnDailyByProfile[currentKey]) {
-        appState.nnnDailyByProfile[currentKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} };
+        appState.nnnDailyByProfile[currentKey] = { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} };
     }
     if (!appState.selfTouchingByProfile[currentKey]) {
         appState.selfTouchingByProfile[currentKey] = {};
@@ -2351,7 +2351,7 @@ async function switchActiveProfile(newProfileKey, notify = true) {
         appState.profilesByKey[cleanKey] = createBlankProfileBundle(cleanKey, cleanKey);
     }
     if (!appState.nnnDailyByProfile[cleanKey]) {
-        appState.nnnDailyByProfile[cleanKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} };
+        appState.nnnDailyByProfile[cleanKey] = { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} };
     }
     if (!appState.selfTouchingByProfile[cleanKey]) {
         appState.selfTouchingByProfile[cleanKey] = {};
@@ -2392,7 +2392,7 @@ function ensureNnnStateDefaults() {
     const pk = appState.profile?.profile_key || "default_monk";
     const yr = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
     if (!appState.nnnDailyByProfile[pk]) {
-        appState.nnnDailyByProfile[pk] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} };
+        appState.nnnDailyByProfile[pk] = { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} };
     }
     if (!appState.nnnDailyByProfile[pk][yr]) {
         appState.nnnDailyByProfile[pk][yr] = {};
@@ -2631,7 +2631,8 @@ function renderNnnYearlyStatus() {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    const yearsToList = [2027, 2026, 2025, 2024, 2023];
+    // YEAR RANGE CHANGES
+    const yearsToList = [2031, 2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022, 2021, 2020];
     yearsToList.forEach((yr) => {
         const ev = computeNnnYearStatus(pk, yr);
         const tr = document.createElement("tr");
