@@ -292,12 +292,55 @@ async function syncWithNeonDB(showNotification = false) {
             if (Array.isArray(data.communityCheckins) && data.communityCheckins.length > 0) {
                 appState.communityCheckins = data.communityCheckins;
             }
-            if (Array.isArray(data.nnnDailyTracker) && data.nnnDailyTracker.length > 0) {
-                ensureNnnStateDefaults();
-                data.nnnDailyTracker.forEach((row) => {
-                    appState.nnnDailyMap[row.day_number] = row;
+            ensureMultiProfileStructures();
+            if (Array.isArray(data.allProfiles) && data.allProfiles.length > 0) {
+                data.allProfiles.forEach((pRow) => {
+                    const pk = pRow.profile_key;
+                    if (!appState.profilesByKey[pk]) {
+                        appState.profilesByKey[pk] = createBlankProfileBundle(pk, pRow.display_name || pk);
+                    }
+                    appState.profilesByKey[pk].profile = {
+                        ...appState.profilesByKey[pk].profile,
+                        ...pRow
+                    };
                 });
+                populateAllProfileDropdowns();
+            }
+            if (Array.isArray(data.allNnnDailyTracker) && data.allNnnDailyTracker.length > 0) {
+                data.allNnnDailyTracker.forEach((row) => {
+                    const pk = row.profile_key || profileKey;
+                    const yr = Number(row.challenge_year || 2026);
+                    if (!appState.nnnDailyByProfile[pk]) appState.nnnDailyByProfile[pk] = {};
+                    if (!appState.nnnDailyByProfile[pk][yr]) appState.nnnDailyByProfile[pk][yr] = {};
+                    appState.nnnDailyByProfile[pk][yr][Number(row.day_number)] = row;
+                });
+            }
+            if (Array.isArray(data.nnnDailyTracker)) {
+                ensureNnnStateDefaults();
+                const activeYr = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
+                if (!appState.nnnDailyByProfile[profileKey]) appState.nnnDailyByProfile[profileKey] = {};
+                data.nnnDailyTracker.forEach((row) => {
+                    const yr = Number(row.challenge_year || 2026);
+                    if (!appState.nnnDailyByProfile[profileKey][yr]) appState.nnnDailyByProfile[profileKey][yr] = {};
+                    appState.nnnDailyByProfile[profileKey][yr][Number(row.day_number)] = row;
+                });
+                appState.nnnDailyMap = appState.nnnDailyByProfile[profileKey][activeYr] || {};
                 renderNnnCalendar();
+                renderNnnYearlyStatus();
+            }
+            if (Array.isArray(data.allSelfTouchingRecords) && data.allSelfTouchingRecords.length > 0) {
+                data.allSelfTouchingRecords.forEach((rec) => {
+                    const pk = rec.profile_key || profileKey;
+                    if (!appState.selfTouchingByProfile[pk]) appState.selfTouchingByProfile[pk] = {};
+                    appState.selfTouchingByProfile[pk][rec.record_date] = rec;
+                });
+            }
+            if (Array.isArray(data.selfTouchingRecords)) {
+                if (!appState.selfTouchingByProfile[profileKey]) appState.selfTouchingByProfile[profileKey] = {};
+                data.selfTouchingRecords.forEach((rec) => {
+                    appState.selfTouchingByProfile[profileKey][rec.record_date] = rec;
+                });
+                renderSelfTouchingCalendar();
             }
             if (Array.isArray(data.nnnStories) && data.nnnStories.length > 0) {
                 appState.nnnStories = data.nnnStories;
@@ -428,6 +471,19 @@ function updateLiveClocks() {
     const fastBadge = document.getElementById("fastingStateBadge");
     const fastBtn = document.getElementById("toggleFastingBtn");
 
+    const fastProfileLbl = document.getElementById("fastingProfileKeyLabel");
+    const fastMetaBadge = document.getElementById("fastingMetabolicStageBadge");
+    if (fastProfileLbl) {
+        fastProfileLbl.textContent = `${appState.profile.profile_key} (${appState.profile.display_name || "Practitioner"})`;
+    }
+    const dashBadge = document.getElementById("dashboardActiveProfileBadge");
+    const dashSum = document.getElementById("dashboardActiveProfileSummary");
+    if (dashBadge) dashBadge.textContent = appState.profile.profile_key;
+    if (dashSum) {
+        const fastTxt = appState.profile.fasting_active ? `🔥 Active ${appState.profile.fasting_target_hours}h Fast` : `⏳ ${appState.profile.fasting_target_hours}h Fast Standby`;
+        dashSum.innerHTML = `Practitioner: <strong class="text-white">${appState.profile.display_name || "Sovereign Initiate"}</strong> • Target: <strong class="text-yellow-300">${appState.profile.target_days || 90} Days</strong> • Fasting: <strong class="text-cyan-300">${fastTxt}</strong> • Blocker: <strong class="text-emerald-300 uppercase">${appState.profile.blocker_strictness || "strict"}</strong>`;
+    }
+
     if (appState.profile.fasting_active && appState.profile.fasting_start_time) {
         const elapsedMs = Math.max(0, Date.now() - new Date(appState.profile.fasting_start_time).getTime());
         const totalSec = Math.floor(elapsedMs / 1000);
@@ -443,13 +499,21 @@ function updateLiveClocks() {
         fastBadge.className = "text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30";
         fastSub.textContent = `${pct}% of ${targetHours}h goal • Ketone & BDNF upregulation active`;
         fastBtn.textContent = "⏹️ Complete Fast (+35 Aura XP)";
+        if (fastMetaBadge) {
+            fastMetaBadge.textContent = fh >= 18 ? "🧬 Deep Autophagy & HGH Surge" : fh >= 12 ? "🔥 Ketosis & BDNF Active" : "⚡ Lipolysis Ramp-Up";
+            fastMetaBadge.className = "px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-[11px] text-emerald-300 font-bold";
+        }
     } else {
         fastDisplay.textContent = "00:00:00";
         fastBar.style.width = "0%";
         fastBadge.textContent = "Standby";
         fastBadge.className = "text-xs font-bold px-2.5 py-1 rounded-lg bg-white/10 text-white/80";
-        fastSub.textContent = `Target: ${appState.profile.fasting_target_hours || 16} Hours • Ready to begin`;
+        fastSub.textContent = `Target: ${appState.profile.fasting_target_hours || 16} Hours (${appState.profile.display_name || appState.profile.profile_key}) • Ready to begin`;
         fastBtn.textContent = "⚡ Start Fasting Window";
+        if (fastMetaBadge) {
+            fastMetaBadge.textContent = `Fed / Baseline (${appState.profile.fasting_target_hours || 16}h Protocol)`;
+            fastMetaBadge.className = "px-2 py-0.5 rounded bg-black/40 text-[11px] text-yellow-300 font-semibold";
+        }
     }
 }
 
@@ -1574,10 +1638,23 @@ document.addEventListener("DOMContentLoaded", () => {
     // NeonDB Sync & Blocker Config Buttons
     document.getElementById("syncDbBtn").addEventListener("click", () => syncWithNeonDB(true));
     document.getElementById("runDbDiagBtn")?.addEventListener("click", () => syncWithNeonDB(true));
-    document.getElementById("pullFromNeonBtn").addEventListener("click", () => syncWithNeonDB(true));
+    document.getElementById("pullFromNeonBtn").addEventListener("click", async () => {
+        const typedKey = document.getElementById("profileKeyInput")?.value.trim() || appState.profile.profile_key || "default_monk";
+        await switchActiveProfile(typedKey, true);
+    });
     document.getElementById("pushToNeonBtn").addEventListener("click", async () => {
-        appState.profile.profile_key = document.getElementById("profileKeyInput").value.trim() || "default_monk";
-        appState.profile.display_name = document.getElementById("displayNameInput").value.trim() || "Sovereign Initiate";
+        const typedKey = document.getElementById("profileKeyInput").value.trim() || "default_monk";
+        const typedName = document.getElementById("displayNameInput").value.trim() || "Sovereign Initiate";
+        appState.profile.profile_key = typedKey;
+        appState.profile.display_name = typedName;
+        ensureMultiProfileStructures();
+        appState.profilesByKey[typedKey] = {
+            profile: { ...appState.profile },
+            completedHabitsToday: [...(appState.completedHabitsToday || [])],
+            relapseHistory: [...(appState.relapseHistory || [])],
+            journalEntries: [...(appState.journalEntries || [])]
+        };
+        populateAllProfileDropdowns();
         saveLocalState();
         const res = await sendNeonAction("update_profile", appState.profile);
         if (res) {
@@ -1823,18 +1900,505 @@ function updateNnnClock() {
     sEl.textContent = String(s).padStart(2, "0");
 }
 
-/* ===== 2. NNN 30-DAY SURVIVAL MATRIX & URGE THERMOMETER ===== */
-function ensureNnnStateDefaults() {
-    if (!appState.nnnDailyMap) {
-        appState.nnnDailyMap = {};
-        for (let i = 1; i <= 14; i++) {
-            appState.nnnDailyMap[i] = {
-                day_number: i,
-                status: i === 7 || i === 12 ? "danger_zone" : "survived",
-                urge_level: i === 7 ? 7 : 2
-            };
-        }
+/* ===== 2. MULTI-PROFILE ENGINE, NNN 30-DAY SURVIVAL MATRIX, IMMUTABLE YEARLY STATUS & SELF-TOUCHING CALENDAR ===== */
+
+const OFFICIAL_SELF_TOUCHING_STATUSES = [
+    "No Sexual Activity",
+    "Only Gooning",
+    "Masturbation With Ejaculation",
+    "Masturbation Without Ejaculation",
+    "Penetrative Sex",
+    "Oral Sex",
+    "Light Couple Play",
+    "Drink Partner's Cum",
+    "Drink Own Cum"
+];
+
+const SELF_TOUCHING_STATUS_META = {
+    "No Sexual Activity": { icon: "🛡️", badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-400/50", cellClass: "border-emerald-400/45 bg-emerald-950/25" },
+    "Only Gooning": { icon: "⚠️", badgeClass: "bg-amber-500/25 text-amber-300 border-amber-400/50", cellClass: "border-amber-400/45 bg-amber-950/25" },
+    "Masturbation With Ejaculation": { icon: "💦", badgeClass: "bg-red-500/25 text-red-300 border-red-400/50", cellClass: "border-red-400/50 bg-red-950/30" },
+    "Masturbation Without Ejaculation": { icon: "🔥", badgeClass: "bg-orange-500/25 text-orange-300 border-orange-400/50", cellClass: "border-orange-400/45 bg-orange-950/25" },
+    "Penetrative Sex": { icon: "❤️", badgeClass: "bg-cyan-500/25 text-cyan-300 border-cyan-400/50", cellClass: "border-cyan-400/45 bg-cyan-950/25" },
+    "Oral Sex": { icon: "💋", badgeClass: "bg-pink-500/25 text-pink-300 border-pink-400/50", cellClass: "border-pink-400/45 bg-pink-950/25" },
+    "Light Couple Play": { icon: "✨", badgeClass: "bg-purple-500/25 text-purple-300 border-purple-400/50", cellClass: "border-purple-400/45 bg-purple-950/30" },
+    "Drink Partner's Cum": { icon: "🧪", badgeClass: "bg-rose-500/25 text-rose-300 border-rose-400/50", cellClass: "border-rose-400/45 bg-rose-950/30" },
+    "Drink Own Cum": { icon: "⚡", badgeClass: "bg-fuchsia-500/25 text-fuchsia-300 border-fuchsia-400/50", cellClass: "border-fuchsia-400/45 bg-fuchsia-950/30" }
+};
+
+function getLocalTodayIso() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function getEffectiveMatrixReferenceTodayIso() {
+    const mode = document.getElementById("nnnMatrixClockModeSelect")?.value || "live";
+    if (mode === "sim_nov15") {
+        return "2026-11-15";
     }
+    return getLocalTodayIso();
+}
+
+function isNovemberDayElapsed(challengeYear, dayNumber) {
+    const refTodayIso = getEffectiveMatrixReferenceTodayIso();
+    const novDateIso = `${Number(challengeYear)}-11-${String(dayNumber).padStart(2, "0")}`;
+    return novDateIso < refTodayIso;
+}
+
+function createBlankProfileBundle(profileKey, displayName = "Sovereign Practitioner") {
+    const now = Date.now();
+    return {
+        profile: {
+            profile_key: profileKey,
+            display_name: displayName,
+            pmo_start_time: new Date(now - 7 * 86400000).toISOString(),
+            p_start_time: new Date(now - 10 * 86400000).toISOString(),
+            mo_start_time: new Date(now - 7 * 86400000).toISOString(),
+            longest_streak_days: 10,
+            aura_points: 250,
+            target_days: 90,
+            fasting_active: false,
+            fasting_start_time: null,
+            fasting_target_hours: 16,
+            blocker_strictness: "strict",
+            custom_blocked_domains: "adultsite.example,triggerhub.example"
+        },
+        completedHabitsToday: ["cold_exposure"],
+        relapseHistory: [],
+        journalEntries: []
+    };
+}
+
+function buildSeededMultiProfileData() {
+    const now = Date.now();
+    const profilesByKey = {
+        default_monk: {
+            profile: {
+                profile_key: "default_monk",
+                display_name: "Sovereign Initiate",
+                pmo_start_time: new Date(now - (14 * 86400000 + 8 * 3600000 + 42 * 60000)).toISOString(),
+                p_start_time: new Date(now - (21 * 86400000 + 4 * 3600000)).toISOString(),
+                mo_start_time: new Date(now - (14 * 86400000 + 8 * 3600000 + 42 * 60000)).toISOString(),
+                longest_streak_days: 21,
+                aura_points: 420,
+                target_days: 90,
+                fasting_active: false,
+                fasting_start_time: null,
+                fasting_target_hours: 16,
+                blocker_strictness: "strict",
+                custom_blocked_domains: "adultsite.example,triggerhub.example,nsfwscroll.example"
+            },
+            completedHabitsToday: ["cold_exposure", "zero_edging"],
+            relapseHistory: [
+                {
+                    id: 101,
+                    streak_type: "MO_ONLY",
+                    streak_days_achieved: 19.4,
+                    trigger_category: "Late Night Scrolling",
+                    emotional_state: "Exhausted / Low Dopamine",
+                    lesson_learned: "Kept P-Free streak intact; installed bedroom phone curfew after 10:30 PM.",
+                    logged_at: new Date(now - 14 * 86400000).toISOString()
+                },
+                {
+                    id: 100,
+                    streak_type: "PMO",
+                    streak_days_achieved: 11.2,
+                    trigger_category: "Stress / Work Burnout",
+                    emotional_state: "Restless / Anxious",
+                    lesson_learned: "Replaced afternoon stress cues with 4-7-8 breathwork and 25 pushups.",
+                    logged_at: new Date(now - 34 * 86400000).toISOString()
+                }
+            ],
+            journalEntries: [
+                {
+                    id: 201,
+                    title: "Day 14 (default_monk): Noticeable Surge in Morning Drive & Focus",
+                    mood: "⚡ High Drive & Focused",
+                    energy_level: 9,
+                    urge_intensity: 2,
+                    content: "Two full weeks locked in on default_monk profile. Completed a 16-hour intermittent fast and hit a personal best on compound lifts.",
+                    created_at: new Date(now - 6 * 3600000).toISOString()
+                }
+            ]
+        },
+        spartan_arjun: {
+            profile: {
+                profile_key: "spartan_arjun",
+                display_name: "Spartan Commander Arjun",
+                pmo_start_time: new Date(now - (42 * 86400000 + 6 * 3600000 + 18 * 60000)).toISOString(),
+                p_start_time: new Date(now - (56 * 86400000 + 2 * 3600000)).toISOString(),
+                mo_start_time: new Date(now - (42 * 86400000 + 6 * 3600000 + 18 * 60000)).toISOString(),
+                longest_streak_days: 56,
+                aura_points: 1180,
+                target_days: 90,
+                fasting_active: true,
+                fasting_start_time: new Date(now - (14 * 3600000 + 25 * 60000)).toISOString(),
+                fasting_target_hours: 18,
+                blocker_strictness: "strict",
+                custom_blocked_domains: "adultsite.example,shortsdoom.example,latebait.example"
+            },
+            completedHabitsToday: ["cold_exposure", "pranayama_breath", "compound_lifts", "deep_work_90", "zero_edging"],
+            relapseHistory: [
+                {
+                    id: 501,
+                    streak_type: "MO_ONLY",
+                    streak_days_achieved: 31.5,
+                    trigger_category: "Travel Fatigue",
+                    emotional_state: "Restless / Anxious",
+                    lesson_learned: "Maintained 18:6 Warrior Monk fasting and cold showers during hotel stays.",
+                    logged_at: new Date(now - 42 * 86400000).toISOString()
+                }
+            ],
+            journalEntries: [
+                {
+                    id: 601,
+                    title: "Day 42 (Spartan Arjun): 18:6 Autophagy Fast + Zero Urge Volatility",
+                    mood: "🔥 Unstoppable Spartan",
+                    energy_level: 10,
+                    urge_intensity: 1,
+                    content: "Currently 14.5 hours into my 18:6 Warrior Monk fast. Voice resonance, posture, and coding output are at all-time highs.",
+                    created_at: new Date(now - 3 * 3600000).toISOString()
+                }
+            ]
+        },
+        vedic_sage_108: {
+            profile: {
+                profile_key: "vedic_sage_108",
+                display_name: "Brahmacharya Sage 108",
+                pmo_start_time: new Date(now - (95 * 86400000 + 11 * 3600000 + 10 * 60000)).toISOString(),
+                p_start_time: new Date(now - (120 * 86400000 + 5 * 3600000)).toISOString(),
+                mo_start_time: new Date(now - (95 * 86400000 + 11 * 3600000 + 10 * 60000)).toISOString(),
+                longest_streak_days: 120,
+                aura_points: 2640,
+                target_days: 180,
+                fasting_active: true,
+                fasting_start_time: new Date(now - (19 * 3600000 + 10 * 60000)).toISOString(),
+                fasting_target_hours: 20,
+                blocker_strictness: "maximum",
+                custom_blocked_domains: "adultsite.example,triggerhub.example,dopaminetrap.example,reelsbait.example"
+            },
+            completedHabitsToday: ["cold_exposure", "pranayama_breath", "compound_lifts", "deep_work_90", "digital_sunset", "zero_edging"],
+            relapseHistory: [
+                {
+                    id: 502,
+                    streak_type: "PMO",
+                    streak_days_achieved: 64.0,
+                    trigger_category: "Complacency at Day 64",
+                    emotional_state: "Overconfident ('Just a peek')",
+                    lesson_learned: "Adopted unbroken Siddhasana pranayama and 20:4 Deep Autophagy fasting.",
+                    logged_at: new Date(now - 95 * 86400000).toISOString()
+                }
+            ],
+            journalEntries: [
+                {
+                    id: 602,
+                    title: "Day 95 (Vedic Sage 108): Full 90-Day Reboot Completed & Ojas Stabilized",
+                    mood: "🧘 Sovereign Equanimity",
+                    energy_level: 10,
+                    urge_intensity: 0,
+                    content: "19+ hours into today's 20:4 Deep Autophagy fast. Completed 3 consecutive victorious NNN campaigns (2023, 2024, 2025) and locked in all 30 days for 2026.",
+                    created_at: new Date(now - 2 * 3600000).toISOString()
+                }
+            ]
+        },
+        neophyte_seeker: {
+            profile: {
+                profile_key: "neophyte_seeker",
+                display_name: "Reboot Challenger",
+                pmo_start_time: new Date(now - (3 * 86400000 + 15 * 3600000 + 5 * 60000)).toISOString(),
+                p_start_time: new Date(now - (7 * 86400000 + 9 * 3600000)).toISOString(),
+                mo_start_time: new Date(now - (3 * 86400000 + 15 * 3600000 + 5 * 60000)).toISOString(),
+                longest_streak_days: 12,
+                aura_points: 145,
+                target_days: 30,
+                fasting_active: false,
+                fasting_start_time: null,
+                fasting_target_hours: 24,
+                blocker_strictness: "standard",
+                custom_blocked_domains: "adultsite.example,triggerhub.example"
+            },
+            completedHabitsToday: ["cold_exposure"],
+            relapseHistory: [
+                {
+                    id: 503,
+                    streak_type: "PMO",
+                    streak_days_achieved: 4.5,
+                    trigger_category: "Social Media Algorithm",
+                    emotional_state: "Boredom & Isolation",
+                    lesson_learned: "Enabled CleanBrowsing DNS 185.228.168.10 and started tracking every day in the Self-Touching Calendar.",
+                    logged_at: new Date(now - 3 * 86400000).toISOString()
+                }
+            ],
+            journalEntries: [
+                {
+                    id: 603,
+                    title: "Day 3 (Reboot Challenger): Building Honest Accountability",
+                    mood: "🛡️ Determined",
+                    energy_level: 7,
+                    urge_intensity: 5,
+                    content: "Failed NNN in 2024 and 2025 early, but logging every trigger honestly now. Preparing for a 24h Solar Reset fast.",
+                    created_at: new Date(now - 8 * 3600000).toISOString()
+                }
+            ]
+        }
+    };
+
+    // Multi-year NNN Daily Survival Matrix per profile
+    const nnnDailyByProfile = {
+        default_monk: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} },
+        spartan_arjun: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} },
+        vedic_sage_108: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} },
+        neophyte_seeker: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} }
+    };
+
+    // default_monk: 2023 Success (30/30), 2024 Failed (Day 11), 2025 Success (30/30), 2026 (Days 1-14 clean/danger)
+    for (let d = 1; d <= 30; d++) {
+        nnnDailyByProfile.default_monk[2023][d] = { profile_key: "default_monk", challenge_year: 2023, day_number: d, status: "survived", urge_level: 2 };
+        nnnDailyByProfile.default_monk[2025][d] = { profile_key: "default_monk", challenge_year: 2025, day_number: d, status: (d === 7 || d === 14 || d === 21) ? "danger_zone" : "survived", urge_level: (d === 7 || d === 14 || d === 21) ? 6 : 2 };
+    }
+    for (let d = 1; d <= 11; d++) {
+        nnnDailyByProfile.default_monk[2024][d] = { profile_key: "default_monk", challenge_year: 2024, day_number: d, status: d === 11 ? "fallen" : (d === 6 || d === 9 ? "danger_zone" : "survived"), urge_level: d === 11 ? 9 : 4 };
+    }
+    for (let d = 1; d <= 14; d++) {
+        nnnDailyByProfile.default_monk[2026][d] = { profile_key: "default_monk", challenge_year: 2026, day_number: d, status: (d === 7 || d === 12) ? "danger_zone" : "survived", urge_level: d === 7 ? 7 : 2 };
+    }
+
+    // spartan_arjun: 2023 Failed (Day 19), 2024 Success (30/30), 2025 Success (30/30), 2026 (Days 1-22 clean/danger)
+    for (let d = 1; d <= 19; d++) {
+        nnnDailyByProfile.spartan_arjun[2023][d] = { profile_key: "spartan_arjun", challenge_year: 2023, day_number: d, status: d === 19 ? "fallen" : "survived", urge_level: d === 19 ? 9 : 2 };
+    }
+    for (let d = 1; d <= 30; d++) {
+        nnnDailyByProfile.spartan_arjun[2024][d] = { profile_key: "spartan_arjun", challenge_year: 2024, day_number: d, status: (d === 8 || d === 17 || d === 25) ? "danger_zone" : "survived", urge_level: 3 };
+        nnnDailyByProfile.spartan_arjun[2025][d] = { profile_key: "spartan_arjun", challenge_year: 2025, day_number: d, status: "survived", urge_level: 1 };
+    }
+    for (let d = 1; d <= 22; d++) {
+        nnnDailyByProfile.spartan_arjun[2026][d] = { profile_key: "spartan_arjun", challenge_year: 2026, day_number: d, status: (d === 5 || d === 15 || d === 22) ? "danger_zone" : "survived", urge_level: 2 };
+    }
+
+    // vedic_sage_108: 2023, 2024, 2025 all 30/30 Success, 2026 all 30 days planned clean
+    [2023, 2024, 2025, 2026].forEach((yr) => {
+        for (let d = 1; d <= 30; d++) {
+            nnnDailyByProfile.vedic_sage_108[yr][d] = { profile_key: "vedic_sage_108", challenge_year: yr, day_number: d, status: "survived", urge_level: 1 };
+        }
+    });
+
+    // neophyte_seeker: 2023 Failed (Day 3), 2024 Failed (Day 4), 2025 Failed (Day 9), 2026 Failed (Day 6)
+    for (let d = 1; d <= 3; d++) {
+        nnnDailyByProfile.neophyte_seeker[2023][d] = { profile_key: "neophyte_seeker", challenge_year: 2023, day_number: d, status: d === 3 ? "fallen" : "danger_zone", urge_level: 8 };
+    }
+    for (let d = 1; d <= 4; d++) {
+        nnnDailyByProfile.neophyte_seeker[2024][d] = { profile_key: "neophyte_seeker", challenge_year: 2024, day_number: d, status: d === 4 ? "fallen" : "danger_zone", urge_level: 8 };
+    }
+    for (let d = 1; d <= 9; d++) {
+        nnnDailyByProfile.neophyte_seeker[2025][d] = { profile_key: "neophyte_seeker", challenge_year: 2025, day_number: d, status: d === 9 ? "fallen" : (d === 3 || d === 7 ? "danger_zone" : "survived"), urge_level: 7 };
+    }
+    for (let d = 1; d <= 8; d++) {
+        nnnDailyByProfile.neophyte_seeker[2026][d] = { profile_key: "neophyte_seeker", challenge_year: 2026, day_number: d, status: d === 6 ? "fallen" : (d === 3 || d === 5 ? "danger_zone" : "survived"), urge_level: 8 };
+    }
+
+    // Self-Touching & Sexual Activity Records per profile across 2025 & 2026
+    const selfTouchingByProfile = {
+        default_monk: {
+            "2026-10-02": { profile_key: "default_monk", record_date: "2026-10-02", activity_status: "Masturbation With Ejaculation", notes: "Elapsed record prior to 14d streak (Immutable)" },
+            "2026-10-08": { profile_key: "default_monk", record_date: "2026-10-08", activity_status: "Only Gooning", notes: "Late night scroll slip (Immutable)" },
+            "2026-10-14": { profile_key: "default_monk", record_date: "2026-10-14", activity_status: "Masturbation Without Ejaculation", notes: "Edging incident before reset (Immutable)" },
+            "2026-10-15": { profile_key: "default_monk", record_date: "2026-10-15", activity_status: "No Sexual Activity", notes: "Day 1 of clean retention streak (Immutable)" },
+            "2026-10-18": { profile_key: "default_monk", record_date: "2026-10-18", activity_status: "No Sexual Activity", notes: "Cold plunge + compound lifts (Immutable)" },
+            "2026-10-22": { profile_key: "default_monk", record_date: "2026-10-22", activity_status: "No Sexual Activity", notes: "Day-7 testosterone peak channeled (Immutable)" },
+            "2026-10-25": { profile_key: "default_monk", record_date: "2026-10-25", activity_status: "No Sexual Activity", notes: "Zero urges all day (Immutable)" },
+            "2026-10-28": { profile_key: "default_monk", record_date: "2026-10-28", activity_status: "No Sexual Activity", notes: "Clean discipline locked in" },
+            "2026-10-29": { profile_key: "default_monk", record_date: "2026-10-29", activity_status: "No Sexual Activity", notes: "Current day commitment — click to edit" },
+            "2026-10-30": { profile_key: "default_monk", record_date: "2026-10-30", activity_status: "No Sexual Activity", notes: "Future date — click to change status" },
+            "2026-11-01": { profile_key: "default_monk", record_date: "2026-11-01", activity_status: "No Sexual Activity", notes: "NNN Day 1 Sovereign Pledge" }
+        },
+        spartan_arjun: {
+            "2026-10-04": { profile_key: "spartan_arjun", record_date: "2026-10-04", activity_status: "Penetrative Sex", notes: "Partner intimacy (Immutable)" },
+            "2026-10-11": { profile_key: "spartan_arjun", record_date: "2026-10-11", activity_status: "Light Couple Play", notes: "Non-ejaculatory couple bonding (Immutable)" },
+            "2026-10-16": { profile_key: "spartan_arjun", record_date: "2026-10-16", activity_status: "Oral Sex", notes: "Anniversary evening (Immutable)" },
+            "2026-10-20": { profile_key: "spartan_arjun", record_date: "2026-10-20", activity_status: "No Sexual Activity", notes: "18:6 Warrior Monk fast + gym (Immutable)" },
+            "2026-10-24": { profile_key: "spartan_arjun", record_date: "2026-10-24", activity_status: "No Sexual Activity", notes: "Full Spartan protocol (Immutable)" },
+            "2026-10-29": { profile_key: "spartan_arjun", record_date: "2026-10-29", activity_status: "No Sexual Activity", notes: "Active 18:6 fast + clean focus" },
+            "2026-11-01": { profile_key: "spartan_arjun", record_date: "2026-11-01", activity_status: "No Sexual Activity", notes: "Spartan NNN Day 1" }
+        },
+        vedic_sage_108: {
+            "2026-10-01": { profile_key: "vedic_sage_108", record_date: "2026-10-01", activity_status: "No Sexual Activity", notes: "Brahmacharya sadhana (Immutable)" },
+            "2026-10-07": { profile_key: "vedic_sage_108", record_date: "2026-10-07", activity_status: "No Sexual Activity", notes: "Ojas transmutation + pranayama (Immutable)" },
+            "2026-10-14": { profile_key: "vedic_sage_108", record_date: "2026-10-14", activity_status: "No Sexual Activity", notes: "20:4 Deep Autophagy fast (Immutable)" },
+            "2026-10-21": { profile_key: "vedic_sage_108", record_date: "2026-10-21", activity_status: "No Sexual Activity", notes: "90+ Day Solar Sovereign (Immutable)" },
+            "2026-10-29": { profile_key: "vedic_sage_108", record_date: "2026-10-29", activity_status: "No Sexual Activity", notes: "Unbroken celibacy" },
+            "2026-11-01": { profile_key: "vedic_sage_108", record_date: "2026-11-01", activity_status: "No Sexual Activity", notes: "NNN Mastery" }
+        },
+        neophyte_seeker: {
+            "2026-10-03": { profile_key: "neophyte_seeker", record_date: "2026-10-03", activity_status: "Only Gooning", notes: "Late night relapse (Immutable)" },
+            "2026-10-09": { profile_key: "neophyte_seeker", record_date: "2026-10-09", activity_status: "Masturbation With Ejaculation", notes: "Weekend slip (Immutable)" },
+            "2026-10-14": { profile_key: "neophyte_seeker", record_date: "2026-10-14", activity_status: "Oral Sex", notes: "Partner encounter (Immutable)" },
+            "2026-10-19": { profile_key: "neophyte_seeker", record_date: "2026-10-19", activity_status: "Drink Partner's Cum", notes: "Logged intimate encounter (Immutable)" },
+            "2026-10-22": { profile_key: "neophyte_seeker", record_date: "2026-10-22", activity_status: "Drink Own Cum", notes: "Logged experimental slip (Immutable)" },
+            "2026-10-25": { profile_key: "neophyte_seeker", record_date: "2026-10-25", activity_status: "Masturbation Without Ejaculation", notes: "Stopped before point of no return (Immutable)" },
+            "2026-10-29": { profile_key: "neophyte_seeker", record_date: "2026-10-29", activity_status: "No Sexual Activity", notes: "Fresh reboot commitment today (Editable)" },
+            "2026-10-31": { profile_key: "neophyte_seeker", record_date: "2026-10-31", activity_status: "Light Couple Play", notes: "Planned date night (Editable future status)" }
+        }
+    };
+
+    return { profilesByKey, nnnDailyByProfile, selfTouchingByProfile };
+}
+
+function ensureMultiProfileStructures() {
+    const seeded = buildSeededMultiProfileData();
+    if (!appState.profilesByKey || typeof appState.profilesByKey !== "object") {
+        appState.profilesByKey = seeded.profilesByKey;
+    } else {
+        Object.keys(seeded.profilesByKey).forEach((pk) => {
+            if (!appState.profilesByKey[pk]) {
+                appState.profilesByKey[pk] = seeded.profilesByKey[pk];
+            }
+        });
+    }
+
+    if (!appState.nnnDailyByProfile || typeof appState.nnnDailyByProfile !== "object") {
+        appState.nnnDailyByProfile = seeded.nnnDailyByProfile;
+    } else {
+        Object.keys(seeded.nnnDailyByProfile).forEach((pk) => {
+            if (!appState.nnnDailyByProfile[pk]) {
+                appState.nnnDailyByProfile[pk] = seeded.nnnDailyByProfile[pk];
+            } else {
+                [2023, 2024, 2025, 2026, 2027].forEach((yr) => {
+                    if (!appState.nnnDailyByProfile[pk][yr]) {
+                        appState.nnnDailyByProfile[pk][yr] = seeded.nnnDailyByProfile[pk][yr] || {};
+                    }
+                });
+            }
+        });
+    }
+
+    if (!appState.selfTouchingByProfile || typeof appState.selfTouchingByProfile !== "object") {
+        appState.selfTouchingByProfile = seeded.selfTouchingByProfile;
+    } else {
+        Object.keys(seeded.selfTouchingByProfile).forEach((pk) => {
+            if (!appState.selfTouchingByProfile[pk]) {
+                appState.selfTouchingByProfile[pk] = seeded.selfTouchingByProfile[pk];
+            }
+        });
+    }
+
+    const currentKey = appState.profile?.profile_key || "default_monk";
+    if (!appState.profilesByKey[currentKey]) {
+        appState.profilesByKey[currentKey] = {
+            profile: { ...appState.profile },
+            completedHabitsToday: [...(appState.completedHabitsToday || [])],
+            relapseHistory: [...(appState.relapseHistory || [])],
+            journalEntries: [...(appState.journalEntries || [])]
+        };
+    }
+    if (!appState.nnnDailyByProfile[currentKey]) {
+        appState.nnnDailyByProfile[currentKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} };
+    }
+    if (!appState.selfTouchingByProfile[currentKey]) {
+        appState.selfTouchingByProfile[currentKey] = {};
+    }
+}
+
+function populateAllProfileDropdowns() {
+    ensureMultiProfileStructures();
+    const activeKey = appState.profile?.profile_key || "default_monk";
+    const selectIds = [
+        "globalProfileSelect",
+        "dashboardProfileSelect",
+        "nnnMatrixProfileSelect",
+        "nnnStatusProfileSelect",
+        "stProfileSelect"
+    ];
+
+    const keys = Object.keys(appState.profilesByKey);
+    selectIds.forEach((id) => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = "";
+        keys.forEach((pk) => {
+            const pObj = appState.profilesByKey[pk]?.profile || {};
+            const disp = pObj.display_name || pk;
+            const opt = document.createElement("option");
+            opt.value = pk;
+            opt.className = "bg-[#160832] text-white";
+            opt.textContent = `${pk} (${disp})`;
+            if (pk === activeKey) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        sel.value = activeKey;
+    });
+}
+
+async function switchActiveProfile(newProfileKey, notify = true) {
+    const cleanKey = String(newProfileKey || "default_monk").trim();
+    if (!cleanKey) return;
+
+    ensureMultiProfileStructures();
+
+    // Save outgoing profile snapshot
+    const prevKey = appState.profile?.profile_key || "default_monk";
+    appState.profilesByKey[prevKey] = {
+        profile: { ...appState.profile },
+        completedHabitsToday: [...(appState.completedHabitsToday || [])],
+        relapseHistory: [...(appState.relapseHistory || [])],
+        journalEntries: [...(appState.journalEntries || [])]
+    };
+
+    // Ensure target profile exists in catalog
+    if (!appState.profilesByKey[cleanKey]) {
+        appState.profilesByKey[cleanKey] = createBlankProfileBundle(cleanKey, cleanKey);
+    }
+    if (!appState.nnnDailyByProfile[cleanKey]) {
+        appState.nnnDailyByProfile[cleanKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} };
+    }
+    if (!appState.selfTouchingByProfile[cleanKey]) {
+        appState.selfTouchingByProfile[cleanKey] = {};
+    }
+
+    const targetBundle = appState.profilesByKey[cleanKey];
+    appState.profile = { ...targetBundle.profile, profile_key: cleanKey };
+    appState.completedHabitsToday = [...(targetBundle.completedHabitsToday || [])];
+    appState.relapseHistory = [...(targetBundle.relapseHistory || [])];
+    appState.journalEntries = [...(targetBundle.journalEntries || [])];
+
+    const selectedMatrixYear = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
+    appState.nnnDailyMap = appState.nnnDailyByProfile[cleanKey][selectedMatrixYear] || {};
+
+    const pkInput = document.getElementById("profileKeyInput");
+    if (pkInput) pkInput.value = cleanKey;
+
+    populateAllProfileDropdowns();
+    saveLocalState();
+    renderAll();
+    renderNnnCalendar();
+    renderNnnYearlyStatus();
+    renderSelfTouchingCalendar();
+
+    if (notify) {
+        const fastState = appState.profile.fasting_active
+            ? `Active ${appState.profile.fasting_target_hours}h Fast`
+            : `${appState.profile.fasting_target_hours}h Fast Standby`;
+        showToast(`Switched active profile to "${cleanKey}" (${appState.profile.display_name}) • ${fastState}`, "success");
+    }
+
+    // Also pull latest state for this profileKey from NeonDB if deployed
+    await syncWithNeonDB(false);
+}
+
+function ensureNnnStateDefaults() {
+    ensureMultiProfileStructures();
+    const pk = appState.profile?.profile_key || "default_monk";
+    const yr = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
+    if (!appState.nnnDailyByProfile[pk]) {
+        appState.nnnDailyByProfile[pk] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {} };
+    }
+    if (!appState.nnnDailyByProfile[pk][yr]) {
+        appState.nnnDailyByProfile[pk][yr] = {};
+    }
+    appState.nnnDailyMap = appState.nnnDailyByProfile[pk][yr];
+
     if (!Array.isArray(appState.nnnStories) || appState.nnnStories.length === 0) {
         appState.nnnStories = [
             {
@@ -1882,58 +2446,501 @@ function renderNnnCalendar() {
     const grid = document.getElementById("nnnCalendarGrid");
     if (!grid) return;
 
+    const pk = appState.profile?.profile_key || "default_monk";
+    const dispName = appState.profile?.display_name || pk;
+    const challengeYear = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
+    const refTodayIso = getEffectiveMatrixReferenceTodayIso();
+
+    if (!appState.nnnDailyByProfile[pk]) appState.nnnDailyByProfile[pk] = {};
+    if (!appState.nnnDailyByProfile[pk][challengeYear]) appState.nnnDailyByProfile[pk][challengeYear] = {};
+    const yearMap = appState.nnnDailyByProfile[pk][challengeYear];
+    appState.nnnDailyMap = yearMap;
+
     grid.innerHTML = "";
     let survivedCount = 0;
+    let lockedElapsedCount = 0;
+    let editableCount = 0;
 
     for (let day = 1; day <= 30; day++) {
-        const entry = appState.nnnDailyMap[day];
+        const entry = yearMap[day];
         const status = entry ? entry.status : "unlogged";
         if (status === "survived" || status === "danger_zone") survivedCount++;
 
+        const isElapsed = isNovemberDayElapsed(challengeYear, day);
+        if (isElapsed) lockedElapsedCount++;
+        else editableCount++;
+
         const cell = document.createElement("div");
-        cell.className = `nnn-day-cell ${status !== "unlogged" ? status : ""}`;
+        cell.className = `nnn-day-cell ${status !== "unlogged" ? status : ""} ${isElapsed ? "locked-elapsed" : "editable-day"}`;
         const icon = status === "survived" ? "🛡️" : status === "danger_zone" ? "🔥" : status === "fallen" ? "💀" : "⏳";
         const label = status === "survived" ? "Clean" : status === "danger_zone" ? "Urge Won" : status === "fallen" ? "Slip" : "Pending";
+        const lockTag = isElapsed
+            ? `<span class="inline-block text-[9px] px-1.5 py-0.5 rounded bg-black/55 text-white/75 font-bold mt-0.5">🔒 Read-Only</span>`
+            : `<span class="inline-block text-[9px] px-1.5 py-0.5 rounded bg-yellow-400/20 text-yellow-200 font-bold mt-0.5">✏️ Editable</span>`;
 
         cell.innerHTML = `
-            <div class="text-[11px] font-bold opacity-75">Nov ${day}</div>
+            <div class="text-[11px] font-bold opacity-85">Nov ${day}</div>
             <div class="text-lg my-0.5">${icon}</div>
             <div class="text-[10px] font-extrabold uppercase tracking-wider">${label}</div>
+            ${lockTag}
         `;
 
         cell.addEventListener("click", async () => {
+            if (isNovemberDayElapsed(challengeYear, day)) {
+                showToast(`🔒 Nov ${day}, ${challengeYear} has already elapsed (Reference: ${getEffectiveMatrixReferenceTodayIso()}) and is in Read-Only Mode!`, "error");
+                return;
+            }
+
             const order = ["unlogged", "survived", "danger_zone", "fallen"];
             const nextStatus = order[(order.indexOf(status) + 1) % order.length];
             if (nextStatus === "unlogged") {
-                delete appState.nnnDailyMap[day];
+                delete yearMap[day];
+                showToast(`Cleared Nov ${day}, ${challengeYear} for profile "${pk}".`, "info");
             } else {
-                appState.nnnDailyMap[day] = {
+                yearMap[day] = {
+                    profile_key: pk,
+                    challenge_year: challengeYear,
                     day_number: day,
                     status: nextStatus,
-                    urge_level: nextStatus === "danger_zone" ? 7 : 2
+                    urge_level: nextStatus === "danger_zone" ? 7 : nextStatus === "fallen" ? 9 : 2
                 };
                 if (nextStatus === "survived") {
                     appState.profile.aura_points += 25;
-                    showToast(`Nov ${day} marked Clean Survived (+25 Aura XP)!`, "success");
+                    showToast(`Nov ${day}, ${challengeYear} marked Clean Survived for "${pk}" (+25 Aura XP)!`, "success");
+                } else if (nextStatus === "danger_zone") {
+                    showToast(`Nov ${day}, ${challengeYear} marked High-Urge Survived for "${pk}".`, "info");
+                } else if (nextStatus === "fallen") {
+                    showToast(`Nov ${day}, ${challengeYear} marked Fallen for "${pk}". Year ${challengeYear} status is now Failed.`, "error");
                 }
             }
             saveLocalState();
             renderNnnCalendar();
+            renderNnnYearlyStatus();
             document.getElementById("headerAuraPoints").textContent = appState.profile.aura_points;
-            if (nextStatus !== "unlogged") {
-                await sendNeonAction("log_nnn_day", {
-                    day_number: day,
-                    status: nextStatus,
-                    urge_level: appState.nnnDailyMap[day].urge_level
-                });
-            }
+
+            await sendNeonAction("log_nnn_day", {
+                profileKey: pk,
+                challenge_year: challengeYear,
+                day_number: day,
+                status: nextStatus,
+                urge_level: yearMap[day]?.urge_level || 2
+            });
         });
 
         grid.appendChild(cell);
     }
 
+    const metaEl = document.getElementById("nnnMatrixProfileMetaText");
+    if (metaEl) {
+        metaEl.innerHTML = `Profile: <strong class="text-yellow-300 font-mono">${pk}</strong> (${dispName}) • Year: <strong class="text-cyan-300">Nov ${challengeYear}</strong> • Reference Today: <code>${refTodayIso}</code>`;
+    }
+    const lockBadgeEl = document.getElementById("nnnMatrixLockSummaryBadge");
+    if (lockBadgeEl) {
+        lockBadgeEl.textContent = `🔒 ${lockedElapsedCount} Elapsed (Read-Only) • ✏️ ${editableCount} Current/Future (Editable)`;
+    }
+
     const clearedEl = document.getElementById("nnnDaysClearedCount");
     if (clearedEl) clearedEl.textContent = `${survivedCount} / 30`;
+}
+
+/* ===== YEAR-WISE IMMUTABLE NNN CHALLENGE STATUS ENGINE (PER PROFILE) ===== */
+function computeNnnYearStatus(profileKey, challengeYear) {
+    ensureMultiProfileStructures();
+    const yr = Number(challengeYear);
+    const yearMap = appState.nnnDailyByProfile[profileKey]?.[yr] || {};
+    const refTodayIso = getEffectiveMatrixReferenceTodayIso();
+
+    let daysSurvived = 0;
+    let daysFallen = 0;
+    let firstFallenDay = null;
+
+    for (let d = 1; d <= 30; d++) {
+        const row = yearMap[d];
+        if (!row) continue;
+        if (row.status === "survived" || row.status === "danger_zone") {
+            daysSurvived++;
+        } else if (row.status === "fallen") {
+            daysFallen++;
+            if (firstFallenDay === null) firstFallenDay = d;
+        }
+    }
+
+    // Strict 3-value immutable status rule: 'November Not Over Yet', 'Failed', 'Success'
+    let status = "November Not Over Yet";
+    let reason = "";
+
+    if (daysFallen > 0) {
+        status = "Failed";
+        reason = `Profile "${profileKey}" logged a slip/failure on November ${firstFallenDay}, ${yr} (${daysFallen} fallen day${daysFallen > 1 ? "s" : ""}). Challenge status is permanently Failed.`;
+    } else if (refTodayIso <= `${yr}-11-30`) {
+        status = "November Not Over Yet";
+        reason = `November ${yr} has not concluded yet (Reference date: ${refTodayIso}) and zero failures are logged (${daysSurvived}/30 days logged clean).`;
+    } else if (daysSurvived > 0) {
+        status = "Success";
+        reason = `November ${yr} has concluded and profile "${profileKey}" survived with zero failures (${daysSurvived}/30 days logged clean).`;
+    } else {
+        status = "Failed";
+        reason = `November ${yr} has concluded with 0 survived days logged for profile "${profileKey}".`;
+    }
+
+    return {
+        profile_key: profileKey,
+        challenge_year: yr,
+        days_survived: daysSurvived,
+        days_fallen: daysFallen,
+        first_fallen_day: firstFallenDay,
+        nnn_status: status,
+        reason
+    };
+}
+
+function renderNnnYearlyStatus() {
+    ensureMultiProfileStructures();
+    const pk = appState.profile?.profile_key || "default_monk";
+    const dispName = appState.profile?.display_name || pk;
+    const inspectYear = Number(document.getElementById("nnnStatusYearSelect")?.value || 2026);
+
+    const singleEval = computeNnnYearStatus(pk, inspectYear);
+
+    const profLbl = document.getElementById("nnnVerdictProfileLabel");
+    const yrLbl = document.getElementById("nnnVerdictYearLabel");
+    const headlineEl = document.getElementById("nnnVerdictHeadline");
+    const reasonEl = document.getElementById("nnnVerdictReasonText");
+    const badgeEl = document.getElementById("nnnVerdictStatusBadge");
+
+    if (profLbl) profLbl.textContent = `${pk} (${dispName})`;
+    if (yrLbl) yrLbl.textContent = String(inspectYear);
+    if (headlineEl) {
+        headlineEl.textContent = `NNN ${inspectYear} Verdict for ${pk}: ${singleEval.nnn_status}`;
+    }
+    if (reasonEl) {
+        reasonEl.textContent = singleEval.reason;
+    }
+    if (badgeEl) {
+        badgeEl.textContent = `🔒 ${singleEval.nnn_status}`;
+        if (singleEval.nnn_status === "Success") {
+            badgeEl.className = "px-4 py-2 rounded-xl font-black text-sm tracking-wide immutable-badge-success select-none";
+        } else if (singleEval.nnn_status === "Failed") {
+            badgeEl.className = "px-4 py-2 rounded-xl font-black text-sm tracking-wide immutable-badge-failed select-none";
+        } else {
+            badgeEl.className = "px-4 py-2 rounded-xl font-black text-sm tracking-wide immutable-badge-not-over select-none";
+        }
+    }
+
+    const tbody = document.getElementById("nnnYearlyStatusTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    const yearsToList = [2027, 2026, 2025, 2024, 2023];
+    yearsToList.forEach((yr) => {
+        const ev = computeNnnYearStatus(pk, yr);
+        const tr = document.createElement("tr");
+        tr.className = `hover:bg-white/5 transition ${yr === inspectYear ? "bg-yellow-400/10" : ""}`;
+
+        const badgeClass =
+            ev.nnn_status === "Success"
+                ? "immutable-badge-success"
+                : ev.nnn_status === "Failed"
+                ? "immutable-badge-failed"
+                : "immutable-badge-not-over";
+
+        const slipText =
+            ev.days_fallen > 0
+                ? `<span class="text-red-300 font-bold">✕ Failed on Nov ${ev.first_fallen_day}, ${yr}</span>`
+                : `<span class="text-emerald-300 font-semibold">✓ Zero Slips Logged</span>`;
+
+        tr.innerHTML = `
+            <td class="py-3 px-4 font-extrabold text-white">November ${yr}</td>
+            <td class="py-3 px-4 font-mono text-yellow-300">${pk}</td>
+            <td class="py-3 px-4 text-white/85"><strong>${ev.days_survived}</strong> / 30 Days</td>
+            <td class="py-3 px-4">${slipText}</td>
+            <td class="py-3 px-4">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold ${badgeClass} select-none" title="Read-Only & Immutable Status">
+                    🔒 ${ev.nnn_status}
+                </span>
+            </td>
+            <td class="py-3 px-4 text-right">
+                <button type="button" class="btn-secondary text-[11px] py-1 px-2.5 inspect-year-matrix-btn" data-year="${yr}">
+                    View ${yr} Matrix
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll(".inspect-year-matrix-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const yr = btn.getAttribute("data-year");
+            const matYrSel = document.getElementById("nnnMatrixYearSelect");
+            const statYrSel = document.getElementById("nnnStatusYearSelect");
+            if (matYrSel) matYrSel.value = yr;
+            if (statYrSel) statYrSel.value = yr;
+            renderNnnCalendar();
+            renderNnnYearlyStatus();
+            document.getElementById("nnnCalendarGrid")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+    });
+}
+
+/* ===== PROFILE-SCOPED SELF-TOUCHING & SEXUAL ACTIVITY RECORDS CALENDAR ENGINE ===== */
+const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+];
+
+function renderSelfTouchingCalendar() {
+    ensureMultiProfileStructures();
+    const grid = document.getElementById("stMonthCalendarGrid");
+    if (!grid) return;
+
+    const pk = appState.profile?.profile_key || "default_monk";
+    const dispName = appState.profile?.display_name || pk;
+    const profileRecords = appState.selfTouchingByProfile[pk] || {};
+
+    const monthSel = document.getElementById("stMonthSelect");
+    const yearSel = document.getElementById("stYearSelect");
+    const calMonth = Number(monthSel ? monthSel.value : 9); // 0-indexed (9 = October)
+    const calYear = Number(yearSel ? yearSel.value : 2026);
+
+    const startFilter = document.getElementById("stStartDateFilter")?.value || "";
+    const endFilter = document.getElementById("stEndDateFilter")?.value || "";
+    const statusFilter = document.getElementById("stStatusFilterSelect")?.value || "ALL";
+    const todayIso = getLocalTodayIso();
+
+    const headingEl = document.getElementById("stCalendarMonthHeading");
+    if (headingEl) {
+        headingEl.textContent = `${MONTH_NAMES[calMonth]} ${calYear} — ${pk} (${dispName})`;
+    }
+
+    const subEl = document.getElementById("stProfileSummarySubtext");
+    if (subEl) {
+        subEl.innerHTML = `Showing <code>sc_self_touching_records</code> for <strong class="text-yellow-300">${pk}</strong> • Today: <code>${todayIso}</code>`;
+    }
+
+    // Compute KPIs for this profile
+    const allDates = Object.keys(profileRecords).sort();
+    let cleanCount = 0;
+    let elapsedLockedCount = 0;
+    let futureEditableCount = 0;
+
+    allDates.forEach((dIso) => {
+        const rec = profileRecords[dIso];
+        if (!rec) return;
+        if (rec.activity_status === "No Sexual Activity") cleanCount++;
+        if (dIso < todayIso) elapsedLockedCount++;
+        else futureEditableCount++;
+    });
+
+    const totalEl = document.getElementById("stStatTotalLogged");
+    const cleanEl = document.getElementById("stStatCleanDays");
+    const lockedEl = document.getElementById("stStatElapsedLocked");
+    const editEl = document.getElementById("stStatFutureEditable");
+    if (totalEl) totalEl.textContent = String(allDates.length);
+    if (cleanEl) cleanEl.textContent = String(cleanCount);
+    if (lockedEl) lockedEl.textContent = String(elapsedLockedCount);
+    if (editEl) editEl.textContent = String(futureEditableCount);
+
+    // Filter banner description
+    const bannerEl = document.getElementById("stActiveFilterBanner");
+    if (bannerEl) {
+        const parts = [];
+        if (startFilter || endFilter) {
+            parts.push(`Date Range: ${startFilter || "Any"} to ${endFilter || "Any"}`);
+        }
+        if (statusFilter !== "ALL") {
+            parts.push(`Status Filter: "${statusFilter}"`);
+        }
+        bannerEl.textContent =
+            parts.length > 0
+                ? `Active Filters → ${parts.join(" • ")} (Non-matching calendar dates are dimmed)`
+                : `Showing full month view for ${MONTH_NAMES[calMonth]} ${calYear} • Elapsed dates (< ${todayIso}) are immutable; today & future dates are editable.`;
+    }
+
+    // Build Month Grid
+    grid.innerHTML = "";
+    const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+    for (let blank = 0; blank < firstDayOfWeek; blank++) {
+        const emptyCell = document.createElement("div");
+        emptyCell.className = "hidden md:block rounded-xl bg-white/[0.02] border border-white/5 min-h-[118px]";
+        grid.appendChild(emptyCell);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateIso = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const rec = profileRecords[dateIso] || null;
+        const status = rec ? rec.activity_status : "";
+        const meta = status ? SELF_TOUCHING_STATUS_META[status] : null;
+        const isElapsed = dateIso < todayIso;
+        const isToday = dateIso === todayIso;
+
+        // Evaluate date-range & status filters
+        let matchesFilter = true;
+        if (startFilter && dateIso < startFilter) matchesFilter = false;
+        if (endFilter && dateIso > endFilter) matchesFilter = false;
+        if (statusFilter === "LOGGED_ONLY" && !status) matchesFilter = false;
+        else if (statusFilter !== "ALL" && statusFilter !== "LOGGED_ONLY" && status !== statusFilter) {
+            matchesFilter = false;
+        }
+
+        const hasActiveFilter = Boolean(startFilter || endFilter || statusFilter !== "ALL");
+        const filterClass = hasActiveFilter
+            ? matchesFilter
+                ? "filter-highlighted"
+                : "filter-dimmed"
+            : "";
+
+        const cell = document.createElement("div");
+        cell.className = `st-cal-cell ${isElapsed ? "locked-elapsed" : "editable-future"} ${meta ? meta.cellClass : ""} ${filterClass}`;
+
+        const topLockBadge = isElapsed
+            ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-semibold" title="Elapsed date is immutable">🔒 Immutable</span>`
+            : `<span class="text-[10px] px-1.5 py-0.5 rounded bg-yellow-400/20 text-yellow-300 font-bold" title="Click to change status">✏️ Editable</span>`;
+
+        const statusContent = status
+            ? `<div class="mt-2 p-1.5 rounded-lg border text-[11px] font-bold leading-tight ${meta?.badgeClass || "bg-white/10 text-white"}">
+                   <span>${meta?.icon || "•"}</span> <span>${status}</span>
+               </div>
+               ${rec?.notes ? `<div class="text-[10px] text-white/65 mt-1 truncate" title="${rec.notes}">${rec.notes}</div>` : ""}`
+            : `<div class="mt-2 text-[11px] text-white/40 italic">${isElapsed ? "No record (Elapsed)" : "+ Click to set status"}</div>`;
+
+        cell.innerHTML = `
+            <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-extrabold ${isToday ? "px-2 py-0.5 rounded-full bg-yellow-400 text-purple-950" : "text-white"}">
+                    ${MONTH_NAMES[calMonth].slice(0, 3)} ${day}${isToday ? " (Today)" : ""}
+                </span>
+                ${topLockBadge}
+            </div>
+            <div class="my-1">${statusContent}</div>
+            <div class="text-[9px] text-white/45 font-mono">${dateIso}</div>
+        `;
+
+        cell.addEventListener("click", () => {
+            if (dateIso < getLocalTodayIso()) {
+                showToast(`🔒 Date ${dateIso} has already elapsed and is permanently immutable! Only current or future dates can be changed.`, "error");
+                return;
+            }
+            openSelfTouchingModal(dateIso);
+        });
+
+        grid.appendChild(cell);
+    }
+
+    // Render Filtered Self-Touching Records Table below the calendar
+    renderFilteredSelfTouchingTable(pk, profileRecords, startFilter, endFilter, statusFilter, todayIso);
+}
+
+function renderFilteredSelfTouchingTable(pk, profileRecords, startFilter, endFilter, statusFilter, todayIso) {
+    const tbody = document.getElementById("stFilteredRecordsTableBody");
+    const countBadge = document.getElementById("stFilteredCountBadge");
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+
+    // Gather all logged dates for this profile, plus if a date range filter is set, include dates in range
+    const dateSet = new Set(Object.keys(profileRecords));
+    if (startFilter && endFilter && startFilter <= endFilter) {
+        let cur = new Date(startFilter + "T00:00:00");
+        const end = new Date(endFilter + "T00:00:00");
+        let safety = 0;
+        while (cur <= end && safety < 120) {
+            const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
+            dateSet.add(iso);
+            cur.setDate(cur.getDate() + 1);
+            safety++;
+        }
+    }
+
+    const sortedDates = Array.from(dateSet).sort().reverse();
+    const matchingRows = [];
+
+    sortedDates.forEach((dIso) => {
+        const rec = profileRecords[dIso] || null;
+        const st = rec ? rec.activity_status : "";
+        if (startFilter && dIso < startFilter) return;
+        if (endFilter && dIso > endFilter) return;
+        if (statusFilter === "LOGGED_ONLY" && !st) return;
+        if (statusFilter !== "ALL" && statusFilter !== "LOGGED_ONLY" && st !== statusFilter) return;
+        if (!startFilter && !endFilter && statusFilter === "ALL" && !st) return;
+        matchingRows.push({ dateIso: dIso, rec });
+    });
+
+    if (countBadge) {
+        countBadge.textContent = `${matchingRows.length} Matching Date${matchingRows.length === 1 ? "" : "s"}`;
+    }
+
+    if (matchingRows.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="py-6 px-4 text-center text-xs text-white/60">
+                    No records match the current filters for profile <strong class="text-yellow-300">${pk}</strong>. Adjust the date range or status filter, or click any current/future date on the calendar above to log a status.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    matchingRows.forEach(({ dateIso, rec }) => {
+        const isElapsed = dateIso < todayIso;
+        const st = rec ? rec.activity_status : "Unlogged";
+        const meta = SELF_TOUCHING_STATUS_META[st] || null;
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-white/5 transition";
+
+        const statusBadge = meta
+            ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${meta.badgeClass}">
+                   <span>${meta.icon}</span> <span>${st}</span>
+               </span>`
+            : `<span class="text-xs text-white/45 italic">Unlogged</span>`;
+
+        const lockBadge = isElapsed
+            ? `<span class="px-2.5 py-1 rounded-lg bg-white/10 text-white/75 text-xs font-semibold">🔒 Elapsed • Immutable</span>`
+            : `<span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold">✏️ Current/Future • Editable</span>`;
+
+        const actionCell = isElapsed
+            ? `<span class="text-[11px] text-white/45 select-none">🔒 Locked</span>`
+            : `<button type="button" class="btn-secondary text-xs py-1 px-3 st-table-edit-btn" data-date="${dateIso}">✏️ Change Status</button>`;
+
+        tr.innerHTML = `
+            <td class="py-3 px-4 font-mono font-bold text-white">${dateIso}</td>
+            <td class="py-3 px-4 font-mono text-yellow-300">${pk}</td>
+            <td class="py-3 px-4">${statusBadge}</td>
+            <td class="py-3 px-4">${lockBadge}</td>
+            <td class="py-3 px-4 text-white/75 text-xs">${rec?.notes || "—"}</td>
+            <td class="py-3 px-4 text-right">${actionCell}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll(".st-table-edit-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const dIso = btn.getAttribute("data-date");
+            openSelfTouchingModal(dIso);
+        });
+    });
+}
+
+function openSelfTouchingModal(dateIso) {
+    const todayIso = getLocalTodayIso();
+    if (dateIso < todayIso) {
+        showToast(`🔒 Date ${dateIso} has already elapsed and is immutable!`, "error");
+        return;
+    }
+
+    const pk = appState.profile?.profile_key || "default_monk";
+    const existing = appState.selfTouchingByProfile[pk]?.[dateIso] || null;
+
+    const modal = document.getElementById("selfTouchingModal");
+    if (!modal) return;
+
+    document.getElementById("stModalDateInput").value = dateIso;
+    document.getElementById("stModalTitleDate").textContent = `Set Activity Status for ${dateIso}`;
+    document.getElementById("stModalProfileLabel").textContent = `${pk} (${appState.profile?.display_name || pk})`;
+    document.getElementById("stModalStatusSelect").value = existing?.activity_status || "No Sexual Activity";
+    document.getElementById("stModalNotesInput").value = existing?.notes || "";
+
+    modal.classList.remove("hidden");
 }
 
 function updateUrgeThermometerUI(val) {
@@ -2491,11 +3498,204 @@ async function renderNnnVisualGallery(fetchLive = false, silent = false) {
 }
 
 function initNnnHub() {
+    ensureMultiProfileStructures();
+    populateAllProfileDropdowns();
     ensureNnnStateDefaults();
     updateNnnClock();
     setInterval(updateNnnClock, 1000);
     renderNnnCalendar();
+    renderNnnYearlyStatus();
+    renderSelfTouchingCalendar();
     renderNnnStories();
+
+    // Bind synchronized Profile Key Dropdowns across Header, Dashboard, NNN Matrix, NNN Yearly Status, and Self-Touching Calendar
+    ["globalProfileSelect", "dashboardProfileSelect", "nnnMatrixProfileSelect", "nnnStatusProfileSelect", "stProfileSelect"].forEach((selId) => {
+        document.getElementById(selId)?.addEventListener("change", (e) => {
+            switchActiveProfile(e.target.value, true);
+        });
+    });
+
+    // NNN Matrix Year & Elapsed Lock Reference Mode Controls
+    document.getElementById("nnnMatrixYearSelect")?.addEventListener("change", (e) => {
+        const yr = e.target.value;
+        const statusYrSel = document.getElementById("nnnStatusYearSelect");
+        if (statusYrSel) statusYrSel.value = yr;
+        renderNnnCalendar();
+        renderNnnYearlyStatus();
+    });
+    document.getElementById("nnnMatrixClockModeSelect")?.addEventListener("change", () => {
+        renderNnnCalendar();
+        renderNnnYearlyStatus();
+        const mode = document.getElementById("nnnMatrixClockModeSelect")?.value;
+        if (mode === "sim_nov15") {
+            showToast("Demo Reference Active (Nov 15, 2026): Nov 1–14 are locked as Elapsed Read-Only; Nov 15–30 are Editable!", "info");
+        } else {
+            showToast(`Live System Date Reference Active (${getLocalTodayIso()}).`, "info");
+        }
+    });
+
+    // NNN Year-Wise Status Year Selector
+    document.getElementById("nnnStatusYearSelect")?.addEventListener("change", (e) => {
+        const yr = e.target.value;
+        const matYrSel = document.getElementById("nnnMatrixYearSelect");
+        if (matYrSel) matYrSel.value = yr;
+        renderNnnCalendar();
+        renderNnnYearlyStatus();
+    });
+
+    // Quick-jump buttons in NNN Sub-nav
+    document.getElementById("nnnJumpYearlyStatusBtn")?.addEventListener("click", () => {
+        setTimeout(() => {
+            document.getElementById("nnnYearlyStatusSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80);
+    });
+    document.getElementById("nnnJumpSelfTouchingBtn")?.addEventListener("click", () => {
+        document.querySelector('.nav-tab[data-tab="activity-calendar"]')?.click();
+    });
+
+    // Self-Touching Calendar Month/Year & Filter Controls
+    document.getElementById("stMonthSelect")?.addEventListener("change", renderSelfTouchingCalendar);
+    document.getElementById("stYearSelect")?.addEventListener("change", renderSelfTouchingCalendar);
+    document.getElementById("stPrevMonthBtn")?.addEventListener("click", () => {
+        const mSel = document.getElementById("stMonthSelect");
+        const ySel = document.getElementById("stYearSelect");
+        if (!mSel || !ySel) return;
+        let m = Number(mSel.value) - 1;
+        let y = Number(ySel.value);
+        if (m < 0) {
+            m = 11;
+            y = Math.max(2024, y - 1);
+        }
+        mSel.value = String(m);
+        ySel.value = String(y);
+        renderSelfTouchingCalendar();
+    });
+    document.getElementById("stNextMonthBtn")?.addEventListener("click", () => {
+        const mSel = document.getElementById("stMonthSelect");
+        const ySel = document.getElementById("stYearSelect");
+        if (!mSel || !ySel) return;
+        let m = Number(mSel.value) + 1;
+        let y = Number(ySel.value);
+        if (m > 11) {
+            m = 0;
+            y = Math.min(2028, y + 1);
+        }
+        mSel.value = String(m);
+        ySel.value = String(y);
+        renderSelfTouchingCalendar();
+    });
+    document.getElementById("stJumpTodayBtn")?.addEventListener("click", () => {
+        const now = new Date();
+        const mSel = document.getElementById("stMonthSelect");
+        const ySel = document.getElementById("stYearSelect");
+        if (mSel) mSel.value = String(now.getMonth());
+        if (ySel) ySel.value = String(now.getFullYear());
+        renderSelfTouchingCalendar();
+    });
+
+    document.getElementById("stStartDateFilter")?.addEventListener("change", (e) => {
+        const val = e.target.value;
+        if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+            const [yr, mo] = val.split("-").map(Number);
+            const mSel = document.getElementById("stMonthSelect");
+            const ySel = document.getElementById("stYearSelect");
+            if (mSel) mSel.value = String(mo - 1);
+            if (ySel && yr >= 2024 && yr <= 2028) ySel.value = String(yr);
+        }
+        renderSelfTouchingCalendar();
+    });
+    document.getElementById("stEndDateFilter")?.addEventListener("change", renderSelfTouchingCalendar);
+    document.getElementById("stStatusFilterSelect")?.addEventListener("change", (e) => {
+        const val = e.target.value;
+        document.querySelectorAll(".st-status-chip").forEach((c) => {
+            const isMatch = c.getAttribute("data-ststatus") === val;
+            c.classList.toggle("ring-2", isMatch);
+            c.classList.toggle("ring-yellow-400", isMatch);
+        });
+        renderSelfTouchingCalendar();
+    });
+    document.querySelectorAll(".st-status-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+            const st = chip.getAttribute("data-ststatus") || "ALL";
+            const sel = document.getElementById("stStatusFilterSelect");
+            if (sel) sel.value = st;
+            document.querySelectorAll(".st-status-chip").forEach((c) => {
+                const isMatch = c.getAttribute("data-ststatus") === st;
+                c.classList.toggle("ring-2", isMatch);
+                c.classList.toggle("ring-yellow-400", isMatch);
+            });
+            renderSelfTouchingCalendar();
+        });
+    });
+    document.getElementById("stResetFiltersBtn")?.addEventListener("click", () => {
+        if (document.getElementById("stStartDateFilter")) document.getElementById("stStartDateFilter").value = "";
+        if (document.getElementById("stEndDateFilter")) document.getElementById("stEndDateFilter").value = "";
+        if (document.getElementById("stStatusFilterSelect")) document.getElementById("stStatusFilterSelect").value = "ALL";
+        document.querySelectorAll(".st-status-chip").forEach((c) => {
+            c.classList.remove("ring-2", "ring-yellow-400");
+        });
+        renderSelfTouchingCalendar();
+        showToast("Cleared calendar date-range and status filters.", "info");
+    });
+
+    // Self-Touching Modal Close, Clear, and Save Handlers
+    const stModal = document.getElementById("selfTouchingModal");
+    document.getElementById("closeSelfTouchingModalBtn")?.addEventListener("click", () => stModal?.classList.add("hidden"));
+    document.getElementById("cancelSelfTouchingModalBtn")?.addEventListener("click", () => stModal?.classList.add("hidden"));
+    document.getElementById("stModalClearRecordBtn")?.addEventListener("click", async () => {
+        const dateIso = document.getElementById("stModalDateInput")?.value || "";
+        const pk = appState.profile?.profile_key || "default_monk";
+        if (!dateIso || dateIso < getLocalTodayIso()) {
+            showToast("Elapsed dates are immutable and cannot be cleared!", "error");
+            return;
+        }
+        if (appState.selfTouchingByProfile[pk]) {
+            delete appState.selfTouchingByProfile[pk][dateIso];
+        }
+        stModal?.classList.add("hidden");
+        saveLocalState();
+        renderSelfTouchingCalendar();
+        showToast(`Cleared status on ${dateIso} for profile "${pk}".`, "info");
+        await sendNeonAction("save_self_touching_record", {
+            profileKey: pk,
+            record_date: dateIso,
+            activity_status: "CLEAR"
+        });
+    });
+
+    document.getElementById("selfTouchingModalForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const dateIso = document.getElementById("stModalDateInput")?.value || "";
+        const statusVal = document.getElementById("stModalStatusSelect")?.value || "No Sexual Activity";
+        const notesVal = document.getElementById("stModalNotesInput")?.value.trim() || "";
+        const pk = appState.profile?.profile_key || "default_monk";
+
+        if (!dateIso || dateIso < getLocalTodayIso()) {
+            showToast(`🔒 Date ${dateIso} has elapsed and is immutable!`, "error");
+            return;
+        }
+
+        if (!appState.selfTouchingByProfile[pk]) appState.selfTouchingByProfile[pk] = {};
+        appState.selfTouchingByProfile[pk][dateIso] = {
+            profile_key: pk,
+            record_date: dateIso,
+            activity_status: statusVal,
+            notes: notesVal,
+            updated_at: new Date().toISOString()
+        };
+
+        stModal?.classList.add("hidden");
+        saveLocalState();
+        renderSelfTouchingCalendar();
+        showToast(`Saved "${statusVal}" on ${dateIso} for profile "${pk}" in NeonDB!`, "success");
+
+        await sendNeonAction("save_self_touching_record", {
+            profileKey: pk,
+            record_date: dateIso,
+            activity_status: statusVal,
+            notes: notesVal
+        });
+    });
     renderNnnHistoryTimeline();
     renderNnnYoutubeGrid();
     renderNnnVisualGallery(true, true);
@@ -2532,18 +3732,39 @@ function initNnnHub() {
     document.getElementById("logNnnUrgeBtn")?.addEventListener("click", async () => {
         const val = Number(document.getElementById("nnnUrgeSlider")?.value || 2);
         const note = document.getElementById("nnnUrgeNoteInput")?.value.trim() || "";
+        const pk = appState.profile?.profile_key || "default_monk";
+        const challengeYear = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
         const dayOfMonth = Math.min(30, new Date().getDate());
         const status = val >= 7 ? "danger_zone" : "survived";
 
-        appState.nnnDailyMap[dayOfMonth] = { day_number: dayOfMonth, status, urge_level: val };
+        if (isNovemberDayElapsed(challengeYear, dayOfMonth)) {
+            showToast(`🔒 Nov ${dayOfMonth}, ${challengeYear} has elapsed and is in Read-Only mode. Select a current or future November year/date!`, "error");
+            return;
+        }
+
+        ensureMultiProfileStructures();
+        if (!appState.nnnDailyByProfile[pk]) appState.nnnDailyByProfile[pk] = {};
+        if (!appState.nnnDailyByProfile[pk][challengeYear]) appState.nnnDailyByProfile[pk][challengeYear] = {};
+        appState.nnnDailyByProfile[pk][challengeYear][dayOfMonth] = {
+            profile_key: pk,
+            challenge_year: challengeYear,
+            day_number: dayOfMonth,
+            status,
+            urge_level: val,
+            trigger_note: note
+        };
+        appState.nnnDailyMap = appState.nnnDailyByProfile[pk][challengeYear];
         appState.profile.aura_points += 25;
         saveLocalState();
         renderNnnCalendar();
+        renderNnnYearlyStatus();
         document.getElementById("headerAuraPoints").textContent = appState.profile.aura_points;
         if (document.getElementById("nnnUrgeNoteInput")) document.getElementById("nnnUrgeNoteInput").value = "";
-        showToast(`Logged Urge Reading (${val}/10) to NeonDB (+25 Aura XP)!`, "success");
+        showToast(`Logged Urge Reading (${val}/10) for "${pk}" (Nov ${dayOfMonth}, ${challengeYear}) (+25 Aura XP)!`, "success");
 
         await sendNeonAction("log_nnn_day", {
+            profileKey: pk,
+            challenge_year: challengeYear,
             day_number: dayOfMonth,
             status,
             urge_level: val,

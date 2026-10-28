@@ -3,12 +3,24 @@ const { Pool } = require("pg");
 /**
  * SeedController + NNN (No Nut November) — Unified NeonDB PostgreSQL Serverless Handler
  * Matches your existing pg.Pool pattern using process.env.DATABASE_URL
- * Automatically creates all 8 tables & seed records on first invocation.
+ * Automatically creates all 9 tables, the immutable yearly NNN status view, and multi-profile seed records.
  */
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
+
+const VALID_SELF_TOUCHING_STATUSES = [
+    "No Sexual Activity",
+    "Only Gooning",
+    "Masturbation With Ejaculation",
+    "Masturbation Without Ejaculation",
+    "Penetrative Sex",
+    "Oral Sex",
+    "Light Couple Play",
+    "Drink Partner's Cum",
+    "Drink Own Cum"
+];
 
 let schemaInitialized = false;
 
@@ -110,7 +122,269 @@ async function ensureSchema() {
             laugh_sparks INTEGER NOT NULL DEFAULT 42,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+
+        CREATE TABLE IF NOT EXISTS sc_self_touching_records (
+            id SERIAL PRIMARY KEY,
+            profile_key VARCHAR(64) NOT NULL DEFAULT 'default_monk',
+            record_date DATE NOT NULL,
+            activity_status VARCHAR(64) NOT NULL CHECK (
+                activity_status IN (
+                    'No Sexual Activity',
+                    'Only Gooning',
+                    'Masturbation With Ejaculation',
+                    'Masturbation Without Ejaculation',
+                    'Penetrative Sex',
+                    'Oral Sex',
+                    'Light Couple Play',
+                    'Drink Partner''s Cum',
+                    'Drink Own Cum'
+                )
+            ),
+            notes VARCHAR(255) DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE(profile_key, record_date)
+        );
+
+        CREATE OR REPLACE VIEW sc_nnn_yearly_status_view AS
+        WITH years AS (
+            SELECT generate_series(2023, 2027) AS challenge_year
+        ),
+        profile_years AS (
+            SELECT p.profile_key, p.display_name, y.challenge_year
+            FROM sc_profiles p
+            CROSS JOIN years y
+        ),
+        agg AS (
+            SELECT
+                t.profile_key,
+                t.challenge_year,
+                COUNT(*) FILTER (WHERE t.status IN ('survived', 'danger_zone')) AS days_survived,
+                COUNT(*) FILTER (WHERE t.status = 'fallen') AS days_fallen,
+                MIN(t.day_number) FILTER (WHERE t.status = 'fallen') AS first_fallen_day
+            FROM sc_nnn_daily_tracker t
+            GROUP BY t.profile_key, t.challenge_year
+        )
+        SELECT
+            py.profile_key,
+            py.display_name,
+            py.challenge_year,
+            COALESCE(a.days_survived, 0)::int AS days_survived,
+            COALESCE(a.days_fallen, 0)::int AS days_fallen,
+            a.first_fallen_day,
+            CASE
+                WHEN COALESCE(a.days_fallen, 0) > 0 THEN 'Failed'
+                WHEN CURRENT_DATE <= MAKE_DATE(py.challenge_year, 11, 30) THEN 'November Not Over Yet'
+                WHEN COALESCE(a.days_survived, 0) > 0 THEN 'Success'
+                ELSE 'Failed'
+            END AS nnn_status
+        FROM profile_years py
+        LEFT JOIN agg a
+            ON a.profile_key = py.profile_key
+           AND a.challenge_year = py.challenge_year
+        ORDER BY py.profile_key ASC, py.challenge_year DESC;
     `);
+
+    // Seed 4 distinct profiles into sc_profiles so profile dropdowns always show multiple rich profiles
+    await pool.query(`
+        INSERT INTO sc_profiles (
+            profile_key, display_name, pmo_start_time, p_start_time, mo_start_time,
+            longest_streak_days, aura_points, target_days,
+            fasting_active, fasting_start_time, fasting_target_hours,
+            blocker_strictness, custom_blocked_domains
+        )
+        VALUES
+        (
+            'default_monk',
+            'Sovereign Initiate',
+            NOW() - INTERVAL '14 days 8 hours',
+            NOW() - INTERVAL '21 days 4 hours',
+            NOW() - INTERVAL '14 days 8 hours',
+            21,
+            420,
+            90,
+            FALSE,
+            NULL,
+            16,
+            'strict',
+            'adultsite.example,triggerhub.example,nsfwscroll.example'
+        ),
+        (
+            'spartan_arjun',
+            'Spartan Commander Arjun',
+            NOW() - INTERVAL '42 days 6 hours',
+            NOW() - INTERVAL '56 days 2 hours',
+            NOW() - INTERVAL '42 days 6 hours',
+            56,
+            1180,
+            90,
+            TRUE,
+            NOW() - INTERVAL '14 hours 25 minutes',
+            18,
+            'strict',
+            'adultsite.example,shortsdoom.example,latebait.example'
+        ),
+        (
+            'vedic_sage_108',
+            'Brahmacharya Sage 108',
+            NOW() - INTERVAL '95 days 11 hours',
+            NOW() - INTERVAL '120 days 5 hours',
+            NOW() - INTERVAL '95 days 11 hours',
+            120,
+            2640,
+            180,
+            TRUE,
+            NOW() - INTERVAL '19 hours 10 minutes',
+            20,
+            'maximum',
+            'adultsite.example,triggerhub.example,dopaminetrap.example,reelsbait.example'
+        ),
+        (
+            'neophyte_seeker',
+            'Reboot Challenger',
+            NOW() - INTERVAL '3 days 15 hours',
+            NOW() - INTERVAL '7 days 9 hours',
+            NOW() - INTERVAL '3 days 15 hours',
+            12,
+            145,
+            30,
+            FALSE,
+            NULL,
+            24,
+            'standard',
+            'adultsite.example,triggerhub.example'
+        )
+        ON CONFLICT (profile_key) DO NOTHING;
+    `);
+
+    // Seed multi-year NNN Daily Survival Matrix records per profile if empty
+    const nnnCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_nnn_daily_tracker`);
+    if (nnnCount.rows[0].cnt < 20) {
+        await pool.query(`
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'default_monk', 2024, d,
+                   CASE WHEN d = 11 THEN 'fallen' WHEN d IN (6, 9) THEN 'danger_zone' ELSE 'survived' END,
+                   CASE WHEN d = 11 THEN 9 WHEN d IN (6, 9) THEN 7 ELSE 2 END,
+                   CASE WHEN d = 11 THEN 'Late night scrolling slip in Nov 2024' ELSE 'Held the line' END
+            FROM generate_series(1, 11) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'default_monk', 2025, d,
+                   CASE WHEN d IN (7, 14, 21) THEN 'danger_zone' ELSE 'survived' END,
+                   CASE WHEN d IN (7, 14, 21) THEN 6 ELSE 2 END,
+                   'Completed 2025 NNN cleanly'
+            FROM generate_series(1, 30) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'default_monk', 2026, d,
+                   CASE WHEN d IN (7, 12) THEN 'danger_zone' ELSE 'survived' END,
+                   CASE WHEN d IN (7, 12) THEN 7 ELSE 2 END,
+                   '2026 NNN War Room log'
+            FROM generate_series(1, 14) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'spartan_arjun', 2023, d,
+                   CASE WHEN d = 19 THEN 'fallen' ELSE 'survived' END,
+                   CASE WHEN d = 19 THEN 9 ELSE 3 END,
+                   '2023 Campaign'
+            FROM generate_series(1, 19) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'spartan_arjun', 2024, d,
+                   CASE WHEN d IN (8, 17, 25) THEN 'danger_zone' ELSE 'survived' END,
+                   3,
+                   '2024 Spartan Victory'
+            FROM generate_series(1, 30) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'spartan_arjun', 2025, d, 'survived', 1, '2025 Flawless Spartan Run'
+            FROM generate_series(1, 30) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'spartan_arjun', 2026, d,
+                   CASE WHEN d IN (5, 15, 22) THEN 'danger_zone' ELSE 'survived' END,
+                   2,
+                   '2026 Spartan Regiment'
+            FROM generate_series(1, 22) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'vedic_sage_108', yr, d, 'survived', 1, 'Brahmacharya Mastery'
+            FROM generate_series(2023, 2026) AS yr
+            CROSS JOIN generate_series(1, 30) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'neophyte_seeker', 2024, d,
+                   CASE WHEN d = 4 THEN 'fallen' ELSE 'danger_zone' END,
+                   8,
+                   '2024 Early Slip'
+            FROM generate_series(1, 4) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'neophyte_seeker', 2025, d,
+                   CASE WHEN d = 9 THEN 'fallen' WHEN d IN (3, 7) THEN 'danger_zone' ELSE 'survived' END,
+                   7,
+                   '2025 Week-2 Slip'
+            FROM generate_series(1, 9) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+            SELECT 'neophyte_seeker', 2026, d,
+                   CASE WHEN d = 6 THEN 'fallen' WHEN d IN (3, 5) THEN 'danger_zone' ELSE 'survived' END,
+                   8,
+                   '2026 Attempt'
+            FROM generate_series(1, 8) AS d
+            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+        `);
+    }
+
+    // Seed initial Self-Touching & Sexual Activity Records if empty
+    const stCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_self_touching_records`);
+    if (stCount.rows[0].cnt === 0) {
+        await pool.query(`
+            INSERT INTO sc_self_touching_records (profile_key, record_date, activity_status, notes)
+            VALUES
+                ('default_monk', '2026-10-02', 'Masturbation With Ejaculation', 'Elapsed record before current 14d streak (Immutable)'),
+                ('default_monk', '2026-10-08', 'Only Gooning', 'Late night trigger browsing (Immutable)'),
+                ('default_monk', '2026-10-14', 'Masturbation Without Ejaculation', 'Edging incident before reset (Immutable)'),
+                ('default_monk', '2026-10-15', 'No Sexual Activity', 'Clean retention streak initiated (Immutable)'),
+                ('default_monk', '2026-10-20', 'No Sexual Activity', 'Morning cold plunge + gym (Immutable)'),
+                ('default_monk', '2026-10-25', 'No Sexual Activity', 'Zero urges all day (Immutable)'),
+                ('default_monk', '2026-10-29', 'No Sexual Activity', 'Current day commitment — editable'),
+                ('default_monk', '2026-10-30', 'No Sexual Activity', 'Planned clean pre-NNN day'),
+                ('default_monk', '2026-11-01', 'No Sexual Activity', 'NNN Day 1 Lock-In'),
+
+                ('spartan_arjun', '2026-10-04', 'Penetrative Sex', 'With partner (Immutable)'),
+                ('spartan_arjun', '2026-10-11', 'Light Couple Play', 'Non-ejaculatory bonding (Immutable)'),
+                ('spartan_arjun', '2026-10-18', 'No Sexual Activity', 'Full monk protocol (Immutable)'),
+                ('spartan_arjun', '2026-10-24', 'No Sexual Activity', '18:6 intermittent fast + heavy squats (Immutable)'),
+                ('spartan_arjun', '2026-10-29', 'No Sexual Activity', 'Active Spartan discipline'),
+                ('spartan_arjun', '2026-11-01', 'No Sexual Activity', 'NNN Day 1 Spartan Oath'),
+
+                ('vedic_sage_108', '2026-10-01', 'No Sexual Activity', 'Brahmacharya sadhana (Immutable)'),
+                ('vedic_sage_108', '2026-10-10', 'No Sexual Activity', 'Pranayama & Ojas transmutation (Immutable)'),
+                ('vedic_sage_108', '2026-10-20', 'No Sexual Activity', '20:4 autophagy fast (Immutable)'),
+                ('vedic_sage_108', '2026-10-29', 'No Sexual Activity', 'Unbroken celibacy'),
+                ('vedic_sage_108', '2026-11-01', 'No Sexual Activity', 'NNN Sovereign Mastery'),
+
+                ('neophyte_seeker', '2026-10-03', 'Only Gooning', 'Weekend relapse (Immutable)'),
+                ('neophyte_seeker', '2026-10-09', 'Masturbation With Ejaculation', 'Late night slip (Immutable)'),
+                ('neophyte_seeker', '2026-10-14', 'Oral Sex', 'Partner encounter (Immutable)'),
+                ('neophyte_seeker', '2026-10-19', 'Drink Partner''s Cum', 'Logged intimate encounter (Immutable)'),
+                ('neophyte_seeker', '2026-10-22', 'Drink Own Cum', 'Logged experimental slip (Immutable)'),
+                ('neophyte_seeker', '2026-10-25', 'Masturbation Without Ejaculation', 'Stopped before point of no return (Immutable)'),
+                ('neophyte_seeker', '2026-10-29', 'No Sexual Activity', 'Starting fresh today — editable'),
+                ('neophyte_seeker', '2026-10-31', 'Light Couple Play', 'Planned date night (editable future status)')
+            ON CONFLICT (profile_key, record_date) DO NOTHING;
+        `);
+    }
 
     const blogCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_blogs`);
     if (blogCount.rows[0].cnt === 0) {
@@ -211,14 +485,43 @@ exports.handler = async (event) => {
 
         /* ===== GET: Fetch full synchronized state from NeonDB ===== */
         if (event.httpMethod === "GET") {
-            const [profileRes, habitsRes, relapsesRes, journalsRes, blogsRes, commRes, nnnDaysRes, nnnStoriesRes] = await Promise.all([
+            const [
+                profileRes,
+                allProfilesRes,
+                habitsRes,
+                relapsesRes,
+                journalsRes,
+                blogsRes,
+                commRes,
+                nnnDaysRes,
+                allNnnDaysRes,
+                nnnYearlyRes,
+                selfTouchRes,
+                allSelfTouchRes,
+                nnnStoriesRes
+            ] = await Promise.all([
                 pool.query(`SELECT * FROM sc_profiles WHERE profile_key = $1`, [profileKey]),
+                pool.query(`SELECT * FROM sc_profiles ORDER BY profile_key ASC`),
                 pool.query(`SELECT * FROM sc_daily_habits WHERE profile_key = $1 AND completed_date = CURRENT_DATE ORDER BY id ASC`, [profileKey]),
                 pool.query(`SELECT * FROM sc_relapse_logs WHERE profile_key = $1 ORDER BY logged_at DESC LIMIT 30`, [profileKey]),
                 pool.query(`SELECT * FROM sc_journal_entries WHERE profile_key = $1 ORDER BY created_at DESC LIMIT 50`, [profileKey]),
                 pool.query(`SELECT * FROM sc_blogs ORDER BY created_at DESC LIMIT 30`),
                 pool.query(`SELECT * FROM sc_community_checkins ORDER BY created_at DESC LIMIT 25`),
-                pool.query(`SELECT * FROM sc_nnn_daily_tracker WHERE profile_key = $1 ORDER BY day_number ASC`, [profileKey]),
+                pool.query(`SELECT * FROM sc_nnn_daily_tracker WHERE profile_key = $1 ORDER BY challenge_year DESC, day_number ASC`, [profileKey]),
+                pool.query(`SELECT * FROM sc_nnn_daily_tracker ORDER BY profile_key ASC, challenge_year DESC, day_number ASC`),
+                pool.query(`SELECT * FROM sc_nnn_yearly_status_view ORDER BY profile_key ASC, challenge_year DESC`),
+                pool.query(
+                    `SELECT id, profile_key, TO_CHAR(record_date, 'YYYY-MM-DD') AS record_date, activity_status, notes, updated_at
+                     FROM sc_self_touching_records
+                     WHERE profile_key = $1
+                     ORDER BY record_date ASC`,
+                    [profileKey]
+                ),
+                pool.query(
+                    `SELECT id, profile_key, TO_CHAR(record_date, 'YYYY-MM-DD') AS record_date, activity_status, notes, updated_at
+                     FROM sc_self_touching_records
+                     ORDER BY profile_key ASC, record_date ASC`
+                ),
                 pool.query(`SELECT * FROM sc_nnn_stories ORDER BY created_at DESC LIMIT 30`)
             ]);
 
@@ -228,12 +531,17 @@ exports.handler = async (event) => {
                 body: JSON.stringify({
                     source: "neondb-postgresql",
                     profile: profileRes.rows[0],
+                    allProfiles: allProfilesRes.rows,
                     todayHabits: habitsRes.rows,
                     relapseHistory: relapsesRes.rows,
                     journalEntries: journalsRes.rows,
                     blogs: blogsRes.rows,
                     communityCheckins: commRes.rows,
                     nnnDailyTracker: nnnDaysRes.rows,
+                    allNnnDailyTracker: allNnnDaysRes.rows,
+                    nnnYearlyStatus: nnnYearlyRes.rows,
+                    selfTouchingRecords: selfTouchRes.rows,
+                    allSelfTouchingRecords: allSelfTouchRes.rows,
                     nnnStories: nnnStoriesRes.rows
                 })
             };
@@ -243,6 +551,11 @@ exports.handler = async (event) => {
         const body = JSON.parse(event.body || "{}");
         const action = body.action || params.action || "";
         const targetProfile = String(body.profileKey || profileKey).trim();
+
+        await pool.query(
+            `INSERT INTO sc_profiles (profile_key) VALUES ($1) ON CONFLICT (profile_key) DO NOTHING`,
+            [targetProfile]
+        );
 
         if (action === "update_profile") {
             const {
@@ -294,10 +607,16 @@ exports.handler = async (event) => {
                 ]
             );
 
+            const allProfilesRes = await pool.query(`SELECT * FROM sc_profiles ORDER BY profile_key ASC`);
+
             return {
                 statusCode: 200,
                 headers: HEADERS,
-                body: JSON.stringify({ message: "Profile updated in NeonDB", profile: result.rows[0] })
+                body: JSON.stringify({
+                    message: "Profile updated in NeonDB",
+                    profile: result.rows[0],
+                    allProfiles: allProfilesRes.rows
+                })
             };
         }
 
@@ -466,18 +785,61 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ checkin: commRes.rows[0] }) };
         }
 
-        // 7. NNN Daily Survival Matrix & Urge Thermometer Log
+        // 7. Profile-Scoped NNN Daily Survival Matrix & Urge Thermometer Log (With Elapsed Date Immutability Check)
         if (action === "log_nnn_day") {
-            const { day_number = 1, status = "survived", urge_level = 2, trigger_note = "" } = body;
+            const challengeYear = Number(body.challenge_year || 2026);
+            const dayNumber = Number(body.day_number || 1);
+            const status = String(body.status || "survived");
+            const urgeLevel = Number(body.urge_level !== undefined ? body.urge_level : 2);
+            const triggerNote = String(body.trigger_note || "");
+
+            if (dayNumber < 1 || dayNumber > 30) {
+                return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "day_number must be between 1 and 30." }) };
+            }
+
+            // Enforce server-side immutability for elapsed November dates
+            const elapsedCheck = await pool.query(
+                `SELECT (MAKE_DATE($1::int, 11, $2::int) < CURRENT_DATE) AS is_elapsed`,
+                [challengeYear, dayNumber]
+            );
+            if (elapsedCheck.rows[0]?.is_elapsed) {
+                return {
+                    statusCode: 403,
+                    headers: HEADERS,
+                    body: JSON.stringify({
+                        error: `November ${dayNumber}, ${challengeYear} has already elapsed and is permanently in read-only mode.`
+                    })
+                };
+            }
+
+            if (status === "unlogged") {
+                await pool.query(
+                    `DELETE FROM sc_nnn_daily_tracker WHERE profile_key = $1 AND challenge_year = $2 AND day_number = $3`,
+                    [targetProfile, challengeYear, dayNumber]
+                );
+                return {
+                    statusCode: 200,
+                    headers: HEADERS,
+                    body: JSON.stringify({
+                        deleted: true,
+                        profile_key: targetProfile,
+                        challenge_year: challengeYear,
+                        day_number: dayNumber
+                    })
+                };
+            }
+
             const nnnRes = await pool.query(
                 `INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note, logged_at)
-                 VALUES ($1, 2026, $2, $3, $4, $5, NOW())
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW())
                  ON CONFLICT (profile_key, challenge_year, day_number)
                  DO UPDATE SET status = EXCLUDED.status, urge_level = EXCLUDED.urge_level, trigger_note = EXCLUDED.trigger_note, logged_at = NOW()
                  RETURNING *`,
-                [targetProfile, Number(day_number), String(status), Number(urge_level), String(trigger_note || "")]
+                [targetProfile, challengeYear, dayNumber, status, urgeLevel, triggerNote]
             );
-            await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 25 WHERE profile_key = $1`, [targetProfile]);
+            if (status === "survived") {
+                await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 25 WHERE profile_key = $1`, [targetProfile]);
+            }
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ nnnDay: nnnRes.rows[0] }) };
         }
 
@@ -504,6 +866,69 @@ exports.handler = async (event) => {
                 [Number(id)]
             );
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ story: stRes.rows[0] }) };
+        }
+
+        // 9. Profile-Scoped Self-Touching & Sexual Activity Records Calendar (With Elapsed Date Immutability Check)
+        if (action === "save_self_touching_record") {
+            const recordDate = String(body.record_date || "").trim();
+            const activityStatus = String(body.activity_status || "").trim();
+            const notes = String(body.notes || "").trim();
+
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(recordDate)) {
+                return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "record_date (YYYY-MM-DD) is required." }) };
+            }
+
+            // Enforce server-side immutability for elapsed dates
+            const elapsedRes = await pool.query(
+                `SELECT ($1::date < CURRENT_DATE) AS is_elapsed`,
+                [recordDate]
+            );
+            if (elapsedRes.rows[0]?.is_elapsed) {
+                return {
+                    statusCode: 403,
+                    headers: HEADERS,
+                    body: JSON.stringify({
+                        error: `Date ${recordDate} has already elapsed and is permanently immutable.`
+                    })
+                };
+            }
+
+            if (activityStatus === "CLEAR") {
+                await pool.query(
+                    `DELETE FROM sc_self_touching_records WHERE profile_key = $1 AND record_date = $2::date`,
+                    [targetProfile, recordDate]
+                );
+                return {
+                    statusCode: 200,
+                    headers: HEADERS,
+                    body: JSON.stringify({ deleted: true, profile_key: targetProfile, record_date: recordDate })
+                };
+            }
+
+            if (!VALID_SELF_TOUCHING_STATUSES.includes(activityStatus)) {
+                return {
+                    statusCode: 400,
+                    headers: HEADERS,
+                    body: JSON.stringify({
+                        error: `Invalid activity_status. Allowed values: ${VALID_SELF_TOUCHING_STATUSES.join(", ")}`
+                    })
+                };
+            }
+
+            const recRes = await pool.query(
+                `INSERT INTO sc_self_touching_records (profile_key, record_date, activity_status, notes, updated_at)
+                 VALUES ($1, $2::date, $3, $4, NOW())
+                 ON CONFLICT (profile_key, record_date)
+                 DO UPDATE SET activity_status = EXCLUDED.activity_status, notes = EXCLUDED.notes, updated_at = NOW()
+                 RETURNING id, profile_key, TO_CHAR(record_date, 'YYYY-MM-DD') AS record_date, activity_status, notes, updated_at`,
+                [targetProfile, recordDate, activityStatus, notes]
+            );
+
+            return {
+                statusCode: 200,
+                headers: HEADERS,
+                body: JSON.stringify({ record: recRes.rows[0] })
+            };
         }
 
         return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
