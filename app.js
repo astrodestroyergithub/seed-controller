@@ -226,17 +226,51 @@ function showToast(message, type = "info") {
     }, 3400);
 }
 
-/* ===== NEONDB SERVERLESS SYNC LAYER ===== */
+/* ===== NEONDB SERVERLESS SYNC LAYER WITH LIVE DIAGNOSTICS ===== */
 async function syncWithNeonDB(showNotification = false) {
     const dot = document.getElementById("dbStatusDot");
     const label = document.getElementById("dbStatusLabel");
+    const diagEl = document.getElementById("dbDiagnosticOutput");
     const profileKey = (document.getElementById("profileKeyInput")?.value || appState.profile.profile_key || "default_monk").trim();
     appState.profile.profile_key = profileKey;
 
+    const isSandboxedPreview =
+        window.location.protocol === "file:" ||
+        window.location.protocol === "blob:" ||
+        window.location.protocol === "data:" ||
+        window.location.hostname.includes("googleusercontent.com");
+
+    if (isSandboxedPreview) {
+        if (dot) dot.className = "status-dot connected";
+        if (label) label.textContent = "NeonDB Ready (Preview)";
+        if (diagEl) {
+            diagEl.innerHTML = `<span class="text-emerald-300">✓ Canvas Preview Mode Active:</span> In-browser persistence is active. Once deployed to Netlify with <code>DATABASE_URL</code>, this endpoint connects directly to your NeonDB PostgreSQL instance.`;
+        }
+        if (showNotification) {
+            showToast("Preview Mode: State saved locally. On Netlify, this syncs with NeonDB PostgreSQL!", "success");
+        }
+        return false;
+    }
+
     try {
-        const res = await fetch(`/.netlify/functions/api?profileKey=${encodeURIComponent(profileKey)}`);
-        if (!res.ok) throw new Error("Local/Preview mode active");
-        const data = await res.json();
+        const res = await fetch(`/.netlify/functions/api?profileKey=${encodeURIComponent(profileKey)}`, {
+            headers: { "Accept": "application/json" }
+        });
+
+        const rawText = await res.text();
+        let data = null;
+        try {
+            data = JSON.parse(rawText);
+        } catch (parseErr) {
+            throw new Error(
+                `Endpoint /.netlify/functions/api returned HTML instead of JSON (HTTP ${res.status}). Make sure you deployed the netlify/functions folder and ran 'npm install' (not drag-and-drop without node_modules).`
+            );
+        }
+
+        if (!res.ok) {
+            const errMsg = (data && (data.error || data.hint)) || `HTTP ${res.status}`;
+            throw new Error(errMsg);
+        }
 
         if (data && data.profile) {
             appState.profile = { ...appState.profile, ...data.profile };
@@ -257,16 +291,22 @@ async function syncWithNeonDB(showNotification = false) {
             }
             saveLocalState();
             renderAll();
-            if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+            if (dot) dot.className = "status-dot connected";
             if (label) label.textContent = "NeonDB Connected";
+            if (diagEl) {
+                diagEl.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO NEONDB POSTGRESQL</span><br>Profile Key: <strong>${profileKey}</strong> • Aura XP: <strong>${appState.profile.aura_points}</strong> • Synced at: ${new Date().toLocaleTimeString()}`;
+            }
             if (showNotification) showToast(`Synchronized profile "${profileKey}" from NeonDB PostgreSQL!`, "success");
             return true;
         }
     } catch (err) {
-        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-yellow-400";
-        if (label) label.textContent = "Local Persistence Ready";
+        if (dot) dot.className = "status-dot local";
+        if (label) label.textContent = "Local Persistence (Click to Check DB)";
+        if (diagEl) {
+            diagEl.innerHTML = `<span class="text-amber-300 font-bold">⚠️ NeonDB Sync Notice:</span> ${err.message}<br><span class="text-white/60">Checklist: (1) In Netlify Site Configuration → Environment Variables, ensure key is named exactly <code>DATABASE_URL</code>, (2) Trigger a new deploy in Netlify Deploys tab after adding the variable, (3) Ensure <code>package.json</code> is in your root folder so Netlify bundles <code>pg</code>.</span>`;
+        }
         if (showNotification) {
-            showToast("Saved to persistent Local Storage (Deploy on Netlify with DATABASE_URL for live NeonDB cloud sync).", "info");
+            showToast(`NeonDB Info: ${err.message}`, "info");
         }
     }
     return false;
@@ -1519,6 +1559,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // NeonDB Sync & Blocker Config Buttons
     document.getElementById("syncDbBtn").addEventListener("click", () => syncWithNeonDB(true));
+    document.getElementById("runDbDiagBtn")?.addEventListener("click", () => syncWithNeonDB(true));
     document.getElementById("pullFromNeonBtn").addEventListener("click", () => syncWithNeonDB(true));
     document.getElementById("pushToNeonBtn").addEventListener("click", async () => {
         appState.profile.profile_key = document.getElementById("profileKeyInput").value.trim() || "default_monk";

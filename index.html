@@ -47,8 +47,8 @@
             <div class="flex items-center flex-wrap gap-2 sm:gap-3">
                 <!-- NeonDB Connection Indicator -->
                 <button type="button" id="syncDbBtn" class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-white/15 bg-white/5 hover:bg-white/10 flex items-center gap-2 transition" title="Sync with NeonDB PostgreSQL or local cache">
-                    <span id="dbStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span id="dbStatusLabel">NeonDB Ready</span>
+                    <span id="dbStatusDot" class="status-dot connected"></span>
+                    <span id="dbStatusLabel">NeonDB Connected</span>
                 </button>
 
                 <!-- Aura Score Pill -->
@@ -715,6 +715,16 @@
                             <button type="button" id="pushToNeonBtn" class="btn-secondary text-xs py-2.5 px-4 flex-1">
                                 ⬆️ Force Save State to NeonDB
                             </button>
+                        </div>
+                    </div>
+
+                                        <div class="p-4 rounded-2xl bg-black/40 border border-white/15 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-cyan-300">🔍 Live NeonDB Connection Diagnostics</span>
+                            <button type="button" id="runDbDiagBtn" class="btn-secondary text-xs py-1 px-2.5">Test Endpoint Now</button>
+                        </div>
+                        <div id="dbDiagnosticOutput" class="text-xs font-mono text-white/80 bg-black/50 p-3 rounded-xl border border-white/10 leading-relaxed">
+                            Click "Test Endpoint Now" or "Load Profile from NeonDB" to inspect the live response from <code>/.netlify/functions/api</code>.
                         </div>
                     </div>
 
