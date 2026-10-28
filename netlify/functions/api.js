@@ -1,9 +1,9 @@
 const { Pool } = require("pg");
 
 /**
- * SeedController + NNN (No Nut November) Unified NeonDB PostgreSQL Serverless Handler
- * Matches your exact pg.Pool + process.env.DATABASE_URL architecture.
- * Automatically creates all 8 tables (including NNN tracker & NNN funny stories) on first call.
+ * SeedController + NNN (No Nut November) — Unified NeonDB PostgreSQL Serverless Handler
+ * Matches your existing pg.Pool pattern using process.env.DATABASE_URL
+ * Automatically creates all 8 tables & seed records on first invocation.
  */
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -112,7 +112,6 @@ async function ensureSchema() {
         );
     `);
 
-    // Seed initial blogs if empty
     const blogCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_blogs`);
     if (blogCount.rows[0].cnt === 0) {
         await pool.query(`
@@ -124,7 +123,7 @@ async function ensureSchema() {
                 'Endocrinology',
                 '6 min read',
                 'Clinical evaluation of serum testosterone dynamics during short-term and long-term abstinence, and why receptor density matters more than transient spikes.',
-                'A landmark study by Jiang et al. (2003) published in the Journal of Zhejiang University SCIENCE demonstrated that serum testosterone concentrations remain stable during the first 6 days of abstinence, then surge to 145.7% of baseline on Day 7. Beyond the acute Day-7 hormonal wave, prolonged semen retention shifts focus toward androgen receptor (AR) sensitivity in the prefrontal cortex and amygdala.',
+                'A landmark study by Jiang et al. (2003) published in the Journal of Zhejiang University SCIENCE demonstrated that serum testosterone concentrations remain stable during the first 6 days of abstinence, then surge to 145.7% of baseline on Day 7. Beyond the acute Day-7 hormonal wave, prolonged semen retention shifts focus toward androgen receptor (AR) sensitivity in the prefrontal cortex and amygdala. When chronic supranormal dopamine stimulation ceases, DeltaFosB accumulation begins to clear, restoring natural drive, morning vitality, and calm assertiveness during high-pressure tasks.',
                 'https://pubmed.ncbi.nlm.nih.gov/12659241/',
                 68
             ),
@@ -134,7 +133,7 @@ async function ensureSchema() {
                 'Neuroscience',
                 '7 min read',
                 'How removing artificial supernormal stimuli reverses striatal downregulation and rebuilds deep work capacity over a 90-day reboot cycle.',
-                'Neuroimaging studies by Kühn and Gallinat (2014) in JAMA Psychiatry revealed an inverse correlation between compulsive visual consumption and gray matter volume in the right caudate of the striatum, alongside reduced functional connectivity to the dorsolateral prefrontal cortex (dlPFC).',
+                'Neuroimaging studies by Kühn and Gallinat (2014) in JAMA Psychiatry revealed an inverse correlation between compulsive visual consumption and gray matter volume in the right caudate of the striatum, alongside reduced functional connectivity to the dorsolateral prefrontal cortex (dlPFC). During a structured 90-day reboot, abstaining from artificial novelty allows tonic dopamine baseline levels to stabilize. Practitioners consistently report a transition around Days 21–35 where everyday rewards—sunlight, strength training, deep coding, and conversation—regain vivid emotional salience.',
                 'https://pubmed.ncbi.nlm.nih.gov/24871202/',
                 94
             ),
@@ -144,63 +143,32 @@ async function ensureSchema() {
                 'Transmutation',
                 '5 min read',
                 'Synthesizing classical Brahmacharya breathwork with modern vagal tone regulation to redirect restless urge energy into creative output.',
-                'Retention without transmutation creates internal friction; retention paired with deliberate somatic channeling produces extraordinary creative stamina. Execute a 4-7-8 breath cycle followed by compound movement to convert urge waves into tangible progress.',
+                'Retention without transmutation creates internal friction; retention paired with deliberate somatic channeling produces extraordinary creative stamina. When sympathetic arousal spikes during an urge wave, executing a 4-4-6-2 box-breath or Ashwini Mudra contracts the pelvic floor while lengthening the exhalation, activating the vagus nerve. Follow this immediately with 20 minutes of compound physical movement or focused output to convert stagnant restlessness into tangible progress.',
                 'https://pubmed.ncbi.nlm.nih.gov/29616846/',
                 53
             )
         `);
     }
 
-    // Seed initial community check-ins if empty
     const commCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_community_checkins`);
     if (commCount.rows[0].cnt === 0) {
         await pool.query(`
             INSERT INTO sc_community_checkins (handle, rank_badge, streak_days, pledge_text, sparks)
             VALUES
             ('SpartanCoder_99', 'Solar Sovereign (Day 60+)', 64, 'Day 64 locked in. Replaced late-night doomscrolling with 5:30 AM cold plunges and 2 hours of deep system architecture work.', 31),
-            ('VedicMonk_IN', 'Transmuter (Day 30+)', 38, 'Completed an 18-hour intermittent fast alongside pranayama today. Urges around day 35 were strong, but the Emergency Urge Shield kept me grounded.', 24),
+            ('VedicMonk_IN', 'Transmuter (Day 30+)', 38, 'Completed a 18-hour intermittent fast alongside pranayama today. Urges around day 35 were strong, but the Emergency Urge Shield kept me grounded.', 24),
             ('AtlasReborn', 'Guardian (Day 14+)', 16, 'Two full weeks clean on both P and MO tracks. Sleep quality and eye contact in meetings have noticeably leveled up.', 19)
         `);
     }
 
-    // Seed initial NNN Funny Stories if empty
-    const storyCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_nnn_stories`);
-    if (storyCount.rows[0].cnt === 0) {
+    const nnnStoryCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_nnn_stories`);
+    if (nnnStoryCount.rows[0].cnt === 0) {
         await pool.query(`
             INSERT INTO sc_nnn_stories (author_handle, day_tag, title, story_body, humor_tag, laugh_sparks)
             VALUES
-            (
-                'LevitationMonk_99',
-                'Day 12 of NNN',
-                'Accidentally Teleported to the Gym Squat Rack at 5:15 AM',
-                'By Day 12 of No Nut November, my alarm did not wake me up—I woke up the alarm. I went to make black coffee, blinked once, and somehow I was already warming up with 225 lbs on the barbell while reciting Marcus Aurelius in Latin. Even the gym bro who never spots anyone nodded at me in solemn respect.',
-                'Superpower Meme Lore',
-                128
-            ),
-            (
-                'ColdShowerGeneral',
-                'Day 19 of NNN',
-                'The Wi-Fi Router Blinked and I Thought It Was Morse Code From My Future Self',
-                'Week 3 urges hit at 11:30 PM while I was finishing a coding sprint. Instead of opening a new tab, I sprinted to the bathroom, turned the shower knob to Arctic Glacier mode, and did 40 pushups on the tile floor. My roommate asked if we were under siege. I told him: Only by our own limbic systems, brother.',
-                'Urge Survival Comedy',
-                96
-            ),
-            (
-                'BrahmacharyaCoder',
-                'Day 26 of NNN',
-                'Dogs Bark in Respect & My CSS Grid Centered Itself on the First Try',
-                'People told me the NNN superpower memes were exaggerated. Explain how on Day 26 I wrote a 400-line PostgreSQL migration and a responsive flexbox layout without opening StackOverflow once, and stray squirrels on my morning walk stood at attention as I walked past.',
-                'Developer Ascension',
-                164
-            ),
-            (
-                'StoicSpartan_07',
-                'Day 7 of NNN',
-                'The Great Peanut Butter Misunderstanding of November 3rd',
-                'My younger cousin genuinely thought No Nut November meant banning almonds, cashews, and peanut butter sandwiches for 30 days. He proudly threw away three jars of crunchy Skippy to support the brotherhood. None of us had the heart to tell him until December 1st.',
-                'Wholesome Fail',
-                215
-            )
+            ('LevitationMonk_99', 'Day 12 of NNN', 'Accidentally Teleported to the Gym Squat Rack at 5:15 AM', 'By Day 12 of No Nut November, my alarm did not wake me up—I woke up the alarm. I went to make black coffee, blinked once, and somehow I was already warming up with 225 lbs on the barbell while reciting Marcus Aurelius in Latin.', 'Superpower Meme Lore', 128),
+            ('ColdShowerGeneral', 'Day 19 of NNN', 'The Wi-Fi Router Blinked and I Thought It Was Morse Code From My Future Self', 'Week 3 urges hit at 11:30 PM while I was finishing a coding sprint. Instead of opening a new tab, I sprinted to the bathroom, turned the shower knob to Arctic Glacier mode, and did 40 pushups.', 'Urge Survival Comedy', 96),
+            ('BrahmacharyaCoder', 'Day 26 of NNN', 'Dogs Bark in Respect & My CSS Grid Centered Itself on the First Try', 'On Day 26 I wrote a 400-line PostgreSQL migration and a responsive flexbox layout without opening StackOverflow once.', 'Developer Ascension', 164)
         `);
     }
 
@@ -251,7 +219,7 @@ exports.handler = async (event) => {
                 pool.query(`SELECT * FROM sc_blogs ORDER BY created_at DESC LIMIT 30`),
                 pool.query(`SELECT * FROM sc_community_checkins ORDER BY created_at DESC LIMIT 25`),
                 pool.query(`SELECT * FROM sc_nnn_daily_tracker WHERE profile_key = $1 ORDER BY day_number ASC`, [profileKey]),
-                pool.query(`SELECT * FROM sc_nnn_stories ORDER BY laugh_sparks DESC, created_at DESC LIMIT 30`)
+                pool.query(`SELECT * FROM sc_nnn_stories ORDER BY created_at DESC LIMIT 30`)
             ]);
 
             return {
@@ -276,7 +244,6 @@ exports.handler = async (event) => {
         const action = body.action || params.action || "";
         const targetProfile = String(body.profileKey || profileKey).trim();
 
-        // 1. Update Profile
         if (action === "update_profile") {
             const {
                 display_name,
@@ -334,9 +301,12 @@ exports.handler = async (event) => {
             };
         }
 
-        // 2. Toggle Daily Habit
         if (action === "toggle_habit") {
             const { habit_code, habit_label, aura_reward = 25 } = body;
+            if (!habit_code || !habit_label) {
+                return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "habit_code and habit_label required" }) };
+            }
+
             const existing = await pool.query(
                 `SELECT id FROM sc_daily_habits WHERE profile_key = $1 AND habit_code = $2 AND completed_date = CURRENT_DATE`,
                 [targetProfile, habit_code]
@@ -367,7 +337,6 @@ exports.handler = async (event) => {
             };
         }
 
-        // 3. Log Relapse
         if (action === "log_relapse") {
             const {
                 streak_type = "PMO",
@@ -384,11 +353,13 @@ exports.handler = async (event) => {
                 [targetProfile, streak_type, Number(streak_days_achieved), trigger_category, emotional_state, lesson_learned]
             );
 
-            let dateUpdateSql = `pmo_start_time = NOW(), p_start_time = NOW(), mo_start_time = NOW()`;
+            let dateUpdateSql = `pmo_start_time = NOW(), mo_start_time = NOW()`;
             if (streak_type === "P_ONLY") {
                 dateUpdateSql = `p_start_time = NOW(), pmo_start_time = NOW()`;
             } else if (streak_type === "MO_ONLY") {
                 dateUpdateSql = `mo_start_time = NOW(), pmo_start_time = NOW()`;
+            } else {
+                dateUpdateSql = `pmo_start_time = NOW(), p_start_time = NOW(), mo_start_time = NOW()`;
             }
 
             const profileRes = await pool.query(
@@ -404,52 +375,82 @@ exports.handler = async (event) => {
             return {
                 statusCode: 200,
                 headers: HEADERS,
-                body: JSON.stringify({ relapse: insertRes.rows[0], profile: profileRes.rows[0] })
+                body: JSON.stringify({
+                    message: "Relapse logged without erasing historical milestones.",
+                    relapse: insertRes.rows[0],
+                    profile: profileRes.rows[0]
+                })
             };
         }
 
-        // 4. Journal CRUD
         if (action === "add_journal") {
             const { title, mood = "Focused", energy_level = 8, urge_intensity = 2, content } = body;
+            if (!title || !content) {
+                return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "Title and content are required." }) };
+            }
+
             const entryRes = await pool.query(
                 `INSERT INTO sc_journal_entries (profile_key, title, mood, energy_level, urge_intensity, content)
-                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 RETURNING *`,
                 [targetProfile, title, mood, Number(energy_level), Number(urge_intensity), content]
             );
             await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 30 WHERE profile_key = $1`, [targetProfile]);
-            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ entry: entryRes.rows[0] }) };
+
+            return {
+                statusCode: 200,
+                headers: HEADERS,
+                body: JSON.stringify({ message: "Journal saved to NeonDB (+30 Aura)", entry: entryRes.rows[0] })
+            };
         }
 
         if (action === "delete_journal") {
             const { id } = body;
             await pool.query(`DELETE FROM sc_journal_entries WHERE id = $1 AND profile_key = $2`, [Number(id), targetProfile]);
-            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ deletedId: Number(id) }) };
+            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ message: "Journal deleted", deletedId: Number(id) }) };
         }
 
-        // 5. Blog CRUD
         if (action === "add_blog") {
             const { title, author, category, read_time, summary, content, source_url } = body;
+            if (!title || !summary || !content) {
+                return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "Title, summary, and content are required." }) };
+            }
             const blogRes = await pool.query(
                 `INSERT INTO sc_blogs (title, author, category, read_time, summary, content, source_url, upvotes)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, 1) RETURNING *`,
-                [title, author || "Community Scholar", category || "Transmutation", read_time || "5 min read", summary, content, source_url || ""]
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
+                 RETURNING *`,
+                [
+                    title,
+                    author || "Community Scholar",
+                    category || "Transmutation",
+                    read_time || "4 min read",
+                    summary,
+                    content,
+                    source_url || ""
+                ]
             );
             await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 50 WHERE profile_key = $1`, [targetProfile]);
-            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ blog: blogRes.rows[0] }) };
+            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ message: "Blog published to NeonDB", blog: blogRes.rows[0] }) };
         }
 
         if (action === "upvote_blog") {
             const { id } = body;
-            const blogRes = await pool.query(`UPDATE sc_blogs SET upvotes = upvotes + 1 WHERE id = $1 RETURNING *`, [Number(id)]);
+            const blogRes = await pool.query(
+                `UPDATE sc_blogs SET upvotes = upvotes + 1 WHERE id = $1 RETURNING *`,
+                [Number(id)]
+            );
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ blog: blogRes.rows[0] }) };
         }
 
-        // 6. Community Check-In
         if (action === "add_checkin") {
             const { handle, rank_badge, streak_days, pledge_text } = body;
+            if (!pledge_text) {
+                return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "Pledge text is required." }) };
+            }
             const commRes = await pool.query(
                 `INSERT INTO sc_community_checkins (handle, rank_badge, streak_days, pledge_text, sparks)
-                 VALUES ($1, $2, $3, $4, 1) RETURNING *`,
+                 VALUES ($1, $2, $3, $4, 1)
+                 RETURNING *`,
                 [handle || "Anonymous Monk", rank_badge || "Initiate", Number(streak_days || 1), pledge_text]
             );
             await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 20 WHERE profile_key = $1`, [targetProfile]);
@@ -458,54 +459,51 @@ exports.handler = async (event) => {
 
         if (action === "spark_checkin") {
             const { id } = body;
-            const commRes = await pool.query(`UPDATE sc_community_checkins SET sparks = sparks + 1 WHERE id = $1 RETURNING *`, [Number(id)]);
+            const commRes = await pool.query(
+                `UPDATE sc_community_checkins SET sparks = sparks + 1 WHERE id = $1 RETURNING *`,
+                [Number(id)]
+            );
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ checkin: commRes.rows[0] }) };
         }
 
-        // 7. NNN 30-Day Daily Tracker & Urge Thermometer Log (NEW)
+        // 7. NNN Daily Survival Matrix & Urge Thermometer Log
         if (action === "log_nnn_day") {
             const { day_number = 1, status = "survived", urge_level = 2, trigger_note = "" } = body;
-            const dayNum = Math.max(1, Math.min(30, Number(day_number)));
-            const urgeVal = Math.max(0, Math.min(10, Number(urge_level)));
-
             const nnnRes = await pool.query(
                 `INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note, logged_at)
                  VALUES ($1, 2026, $2, $3, $4, $5, NOW())
                  ON CONFLICT (profile_key, challenge_year, day_number)
                  DO UPDATE SET status = EXCLUDED.status, urge_level = EXCLUDED.urge_level, trigger_note = EXCLUDED.trigger_note, logged_at = NOW()
                  RETURNING *`,
-                [targetProfile, dayNum, status, urgeVal, String(trigger_note)]
+                [targetProfile, Number(day_number), String(status), Number(urge_level), String(trigger_note || "")]
             );
-
-            if (status === "survived") {
-                await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 25 WHERE profile_key = $1`, [targetProfile]);
-            }
-
+            await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 25 WHERE profile_key = $1`, [targetProfile]);
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ nnnDay: nnnRes.rows[0] }) };
         }
 
-        // 8. NNN Funny Stories & War Room Lore CRUD (NEW)
+        // 8. NNN Funny Stories & Laugh Salutes
         if (action === "add_nnn_story") {
             const { author_handle, day_tag, title, story_body, humor_tag } = body;
-            const storyRes = await pool.query(
+            if (!title || !story_body) {
+                return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "Title and story_body required" }) };
+            }
+            const stRes = await pool.query(
                 `INSERT INTO sc_nnn_stories (author_handle, day_tag, title, story_body, humor_tag, laugh_sparks)
-                 VALUES ($1, $2, $3, $4, $5, 1) RETURNING *`,
-                [
-                    author_handle || "NovemberSpartan",
-                    day_tag || "Day 15 of NNN",
-                    title,
-                    story_body,
-                    humor_tag || "Superpower Meme Lore"
-                ]
+                 VALUES ($1, $2, $3, $4, $5, 1)
+                 RETURNING *`,
+                [author_handle || "AnonSpartan", day_tag || "Day 14 of NNN", title, story_body, humor_tag || "Superpower Meme Lore"]
             );
             await pool.query(`UPDATE sc_profiles SET aura_points = aura_points + 35 WHERE profile_key = $1`, [targetProfile]);
-            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ story: storyRes.rows[0] }) };
+            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ story: stRes.rows[0] }) };
         }
 
         if (action === "spark_nnn_story") {
             const { id } = body;
-            const storyRes = await pool.query(`UPDATE sc_nnn_stories SET laugh_sparks = laugh_sparks + 1 WHERE id = $1 RETURNING *`, [Number(id)]);
-            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ story: storyRes.rows[0] }) };
+            const stRes = await pool.query(
+                `UPDATE sc_nnn_stories SET laugh_sparks = laugh_sparks + 1 WHERE id = $1 RETURNING *`,
+                [Number(id)]
+            );
+            return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ story: stRes.rows[0] }) };
         }
 
         return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: `Unknown action: ${action}` }) };

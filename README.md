@@ -52,15 +52,15 @@ Open [Neon Console](https://console.neon.tech/) → **SQL Editor**, select your 
 
 ---
 
-## Live APIs & How to Obtain Free API Keys
+## Live APIs & Keyless / Instant-Key Alternatives (No Reddit or Pixabay Key Required!)
 
-| API Service | Env Variable Name | Required? | How to Obtain Free API Key |
+| Feature / Feed | Default 100% Keyless Live API (Zero Setup) | Optional API-Key Upgrade (`Netlify Env Var`) | How to Obtain Free Key (If Desired) |
 | :--- | :--- | :--- | :--- |
-| **YouTube Data API v3** | `YOUTUBE_API_KEY` | Optional *(Built-in 50-video index included)* | 1. Go to [Google Cloud Console](https://console.cloud.google.com/)<br>2. Create a project → **APIs & Services → Library** → Enable **YouTube Data API v3**<br>3. Go to **Credentials → Create Credentials → API key** |
-| **Reddit OAuth2 API** | `REDDIT_CLIENT_ID` & `REDDIT_CLIENT_SECRET` | Optional *(Public JSON scraper works without key)* | 1. Go to [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps)<br>2. Click **create another app...** → Select **script** or **web app**<br>3. Set redirect URI to `http://localhost:8888`<br>4. Copy the 14-char **client ID** (under app name) and 27-char **secret** |
-| **Pixabay Image API** | `PIXABAY_API_KEY` | Optional *(3 custom murals built-in)* | 1. Sign in at [pixabay.com/api/docs/](https://pixabay.com/api/docs/)<br>2. Copy your free API key shown under the **Parameters** section |
-| **NIH NCBI PubMed API** | `NCBI_API_KEY` | Optional *(Keyless tier allows 3 req/s)* | 1. Sign in at [ncbi.nlm.nih.gov/account/settings/](https://www.ncbi.nlm.nih.gov/account/settings/)<br>2. Scroll to **API Key Management** → Click **Create an API Key** |
-| **DummyJSON Quotes API** | *(None)* | No Key Needed | 100% open keyless REST API (`https://dummyjson.com/quotes/random`) |
+| **NNN Visual Gallery & Classical Art** | **Art Institute of Chicago Open REST API** (`api.artic.edu`) + **Wikimedia Commons Live API** (`commons.wikimedia.org`) | **`PEXELS_API_KEY`** *(Best Pixabay replacement)* or **`UNSPLASH_ACCESS_KEY`** | **Pexels (10-sec instant key):** Sign up at [pexels.com/api](https://www.pexels.com/api/) and click **Generate API Key**.<br>**Unsplash:** Create an app at [unsplash.com/developers](https://unsplash.com/developers) and copy your **Access Key**. |
+| **Live Reddit & Community Scraper** | **Browser-Direct Reddit Public JSON** (`reddit.com/r/{sub}/hot.json`) + **PullPush.io Reddit API** (`api.pullpush.io`) + **Hacker News Algolia API** (`hn.algolia.com`) | `REDDIT_CLIENT_ID` & `REDDIT_CLIENT_SECRET` *(100% Optional — Not required!)* | No API key needed! The 3-tier keyless pipeline scrapes `r/nonutnovember`, `r/SemenRetention`, `r/NoFap`, `r/Stoicism`, `r/getdisciplined`, and Hacker News automatically. |
+| **Top 50 NNN YouTube Cinema** | **Built-in 50-Video Curated NNN & Retention Cinema Index** | **`YOUTUBE_API_KEY`** | Go to [Google Cloud Console](https://console.cloud.google.com/) → Enable **YouTube Data API v3** → **Credentials → Create API Key**. |
+| **Science & Neurobiology Feed** | **NIH NCBI PubMed E-Utilities Public API** (`eutils.ncbi.nlm.nih.gov`, 3 req/s keyless) | `NCBI_API_KEY` *(Optional)* | Sign in at [ncbi.nlm.nih.gov/account/settings](https://www.ncbi.nlm.nih.gov/account/settings/) → **Create an API Key** (raises rate limit to 10 req/s). |
+| **Daily Stoic & Discipline Quotes** | **DummyJSON Live Quotes REST API** (`dummyjson.com/quotes/random`) | *(None Needed)* | 100% keyless open REST API. |
 
 ---
 
