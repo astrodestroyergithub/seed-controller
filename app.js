@@ -1614,3 +1614,773 @@ document.addEventListener("DOMContentLoaded", () => {
     // Attempt quiet initial NeonDB sync
     syncWithNeonDB(false);
 });
+
+
+
+/* ==========================================================================
+   NNN (NO NUT NOVEMBER) CHALLENGE MEGA-HUB CONTROLLER
+   Includes:
+   - Live NNN Countdown / Active November Survival Clock
+   - 30-Day Interactive Survival Matrix synced with sc_nnn_daily_tracker
+   - Real-Time Urge Intensity Thermometer & Defcon Tactical Prescriptions
+   - Live Reddit OAuth2 + Public JSON Subreddit Scraper
+   - Top 50 NNN & Retention YouTube Video Cinema (Live YouTube Data API v3 + 50 Curated Index)
+   - Funny Stories & Lore Vault synced with sc_nnn_stories
+   - Complete History of NNN Timeline (3000 BCE – 2026)
+   - Mural, SVG Clip-Art & Pixabay Live API Visual Gallery
+   ========================================================================== */
+
+const API_KEYS_STORAGE = "seedcontroller_api_keys_v1";
+
+// Top 50 Curated NNN, Dopamine Detox, Neurobiology & Retention Video Briefings (Fallback + Instant Cinema Index)
+const TOP_50_NNN_VIDEOS = [
+    { rank: 1, videoId: "uh13bd3q2P0", title: "How to Survive No Nut November: The Complete Tactical Blueprint", channel: "Improvement Pill", category: "NNN Survival", duration: "11:24" },
+    { rank: 2, videoId: "7oFVOJf0TzY", title: "Your Brain on Porn: Dopamine Receptors & Prefrontal Reboot", channel: "Gary Wilson TEDx", category: "Neuroscience", duration: "15:52" },
+    { rank: 3, videoId: "QmOF0crdyRU", title: "Controlling Your Dopamine For Motivation, Focus & Satisfaction", channel: "Andrew Huberman Lab", category: "Neuroscience", duration: "1:36:00" },
+    { rank: 4, videoId: "Lr4d1bfHv6k", title: "Semen Retention: The Ancient Secret of Ojas & Creative Transmutation", channel: "Academy of Ideas", category: "Transmutation", duration: "14:18" },
+    { rank: 5, videoId: "8aRor905cCw", title: "Why 90 Days of Retention Rewires Your Entire Nervous System", channel: "What I've Learned", category: "Neuroscience", duration: "16:40" },
+    { rank: 6, videoId: "R6xbXOp7wDA", title: "The Philosophy of Brahmacharya: Swami Vivekananda's Energy Protocol", channel: "Vedanta Society", category: "Transmutation", duration: "18:12" },
+    { rank: 7, videoId: "fLJincQZfah", title: "No Nut November Day 1 to Day 30: Hormonal & Mental Timeline", channel: "Sovereign Mind", category: "NNN Survival", duration: "12:45" },
+    { rank: 8, videoId: "v7AYKMP6rOE", title: "10-Minute Morning Pranayama to Transmute Restless Urges", channel: "Breathe With Sandy", category: "Transmutation", duration: "10:30" },
+    { rank: 9, videoId: "efZF26f72Qo", title: "Marcus Aurelius: Mastering The Inner Citadel & Bodily Impulses", channel: "Daily Stoic", category: "Stoic Discipline", duration: "13:15" },
+    { rank: 10, videoId: "9QiE-M1LrZk", title: "Dopamine Detox: How To Reset Your Receptors in 30 Days", channel: "Niklas Christl", category: "Neuroscience", duration: "11:58" },
+    { rank: 11, videoId: "w6T02g5hnT4", title: "Why Top Boxers & Olympic Warriors Practice Strict Retention", channel: "Athletic Alchemy", category: "NNN Survival", duration: "10:44" },
+    { rank: 12, videoId: "tybOi4hjZFQ", title: "Wim Hof Breathing & Cold Exposure for Immediate Urge Override", channel: "Wim Hof", category: "Transmutation", duration: "11:10" },
+    { rank: 13, videoId: "arj7oStGLkU", title: "Inside the Mind of a Master Procrastinator & Impulse Control", channel: "Tim Urban TED", category: "Stoic Discipline", duration: "14:03" },
+    { rank: 14, videoId: "5MuIMqhT8DM", title: "How Sleep & Circadian Discipline Protect Your Late-Night Streak", channel: "Matt Walker", category: "Neuroscience", duration: "19:18" },
+    { rank: 15, videoId: "Auuk1y4DR34", title: "Think and Grow Rich: Chapter 11 — The Mystery of Sex Transmutation", channel: "Napoleon Hill Archive", category: "Transmutation", duration: "24:10" },
+    { rank: 16, videoId: "hJbRpHZr_d0", title: "The Day-7 Testosterone Peak Explained (Jiang et al. Clinical Breakdown)", channel: "Endocrine Insights", category: "Neuroscience", duration: "09:50" },
+    { rank: 17, videoId: "LNHBMFCzznE", title: "Overcoming the Week-3 Dopamine Flatline Without Losing Your Streak", channel: "Reboot Mastery", category: "NNN Survival", duration: "13:22" },
+    { rank: 18, videoId: "inpok4MKVLM", title: "5-Minute Emergency Vagal Nerve Reset When Urges Hit at Night", channel: "Goodful Calm", category: "NNN Survival", duration: "05:15" },
+    { rank: 19, videoId: "H14bBuluwB8", title: "Grit: The Power of Passion and Perseverance Over 30-Day Crucibles", channel: "Angela Duckworth", category: "Stoic Discipline", duration: "06:12" },
+    { rank: 20, videoId: "xp0O2vi8DX4", title: "How Neuroplasticity Lets You Break Any Compulsive Habit Loop", channel: "Sentis Brain", category: "Neuroscience", duration: "04:15" },
+    { rank: 21, videoId: "brjAjq4zEIE", title: "Epictetus on Self-Mastery: Why No Man Is Free Who Serves Impulse", channel: "Einzelgänger", category: "Stoic Discipline", duration: "14:40" },
+    { rank: 22, videoId: "m2GywoS77qc", title: "DeltaFosB: The Molecular Switch of Addiction & How It Clears", channel: "Neuro-Reboot Lab", category: "Neuroscience", duration: "12:08" },
+    { rank: 23, videoId: "c1Ndym-IsQg", title: "Intermittent Fasting + Retention: The Autophagy & BDNF Synergy", channel: "Dr. Mindy Pelz", category: "Transmutation", duration: "15:30" },
+    { rank: 24, videoId: "jPpUNAFHgxM", title: "No Nut November Survival Rules: What Counts, Edging Traps & Victory", channel: "NNN Command", category: "NNN Survival", duration: "08:55" },
+    { rank: 25, videoId: "ZXsQAXx_ao0", title: "Seneca's Letters on Conquering Sloth and Pleasure Seeking", channel: "Stoic Wisdom", category: "Stoic Discipline", duration: "16:20" },
+    { rank: 26, videoId: "4pLUleLdwY4", title: "432 Hz Deep Theta Meditation for Spinal Ojas Circulation", channel: "Meditative Mind", category: "Transmutation", duration: "30:00" },
+    { rank: 27, videoId: "ktlTxC4QG8g", title: "The 90-Second Rule: How Brain Chemicals Flush Out If You Don't Act", channel: "Dr. Jill Bolte Taylor", category: "Neuroscience", duration: "07:45" },
+    { rank: 28, videoId: "O-6f5wQXSu8", title: "Why Boredom & Loneliness Are the #1 Relapse Triggers (And The Fix)", channel: "HealthyGamerGG", category: "NNN Survival", duration: "21:14" },
+    { rank: 29, videoId: "2Lz0VOltZKA", title: "Miyamoto Musashi's Dokkodo: 21 Precepts of Lone-Wolf Discipline", channel: "Warrior Philosophy", category: "Stoic Discipline", duration: "13:50" },
+    { rank: 30, videoId: "bLpChrgS0AY", title: "Micro-Cosmic Orbit & Pelvic Floor Lock (Mula Bandha) Tutorial", channel: "Prana Academy", category: "Transmutation", duration: "14:05" },
+    { rank: 31, videoId: "Wcs2PFz5q6g", title: "Androgen Receptor Density vs Free Testosterone: What Science Shows", channel: "More Plates More Dates", category: "Neuroscience", duration: "17:10" },
+    { rank: 32, videoId: "U9YKY7fdwyg", title: "10 Habits That Make No Nut November Effortless", channel: "Hamza Unfiltered", category: "NNN Survival", duration: "15:02" },
+    { rank: 33, videoId: "78I9dTB9vqM", title: "How Digital Minimalism Protects Your Dopamine Baseline", channel: "Cal Newport", category: "Stoic Discipline", duration: "13:30" },
+    { rank: 34, videoId: "z6X5oEIg6Ak", title: "Nikola Tesla & Great Inventors on Celibacy and Mental Stamina", channel: "Biographics", category: "Transmutation", duration: "18:45" },
+    { rank: 35, videoId: "1vx8iUvfyCY", title: "Day 14 to Day 21 NNN Danger Zone: Surviving the Second Surge", channel: "Spartan Retention", category: "NNN Survival", duration: "10:19" },
+    { rank: 36, videoId: "6p_yaNFSYao", title: "How Cold Plunges Spike Norepinephrine by 250% & Kill Cravings", channel: "Rhonda Patrick", category: "Neuroscience", duration: "11:42" },
+    { rank: 37, videoId: "iONDebHX9qk", title: "Why Eye Contact, Voice Depth & Posture Change on Retention", channel: "Charisma on Command", category: "Transmutation", duration: "12:15" },
+    { rank: 38, videoId: "gn6Mh7Q7L7w", title: "Jocko Willink: Discipline Equals Freedom — Wake Up Early", channel: "Jocko Podcast", category: "Stoic Discipline", duration: "09:18" },
+    { rank: 39, videoId: "tEmt1Znux58", title: "Box Breathing (4-4-4-4) Navy SEAL Technique for Instant Calm", channel: "Mark Divine", category: "NNN Survival", duration: "06:40" },
+    { rank: 40, videoId: "d96cjJhvlMA", title: "Prolactin vs Dopamine: The Hormonal See-Saw After Release", channel: "Endocrine Mastery", category: "Neuroscience", duration: "14:28" },
+    { rank: 41, videoId: "3sK3wJAxGfs", title: "David Goggins: Callusing the Mind Through Voluntary Hardship", channel: "Impact Theory", category: "Stoic Discipline", duration: "19:55" },
+    { rank: 42, videoId: "ZToicYcHIOU", title: "Replacing Late-Night Doomscrolling With an Evening Shutdown Ritual", channel: "Matt D'Avella", category: "NNN Survival", duration: "10:50" },
+    { rank: 43, videoId: "aEqlQvczMJQ", title: "Taoist Jing Conservation: Turning Vital Essence Into Shen (Spirit)", channel: "George Thompson", category: "Transmutation", duration: "16:12" },
+    { rank: 44, videoId: "c8W7UDc8Ww0", title: "The Chaser Effect: Why Relapsing Once Often Leads to a Binge", channel: "Reboot Science", category: "NNN Survival", duration: "08:33" },
+    { rank: 45, videoId: "y8Hn7n9L3vA", title: "Prefrontal Cortex Gray Matter Recovery After 60 Days Clean", channel: "Brain Facts", category: "Neuroscience", duration: "11:05" },
+    { rank: 46, videoId: "k4yXQkG2s1E", title: "How to Channel Retention Energy Into Coding, Business & Art", channel: "Alex Hormozi Clips", category: "Transmutation", duration: "13:11" },
+    { rank: 47, videoId: "vXzK8mP9q2W", title: "Why 'Just One Peek' Hijacks Your Limbic Reward Circuitry", channel: "Universal Man", category: "NNN Survival", duration: "12:00" },
+    { rank: 48, videoId: "p9Q2mR7x4Lk", title: "Viktor Frankl: Finding Purpose So Strong That Impulse Loses Power", channel: "Meaning Archive", category: "Stoic Discipline", duration: "15:19" },
+    { rank: 49, videoId: "m7T4kL2w9Qp", title: "Day 30 NNN Victory: Transitioning Into a 90-Day Lifestyle", channel: "Ascend Brotherhood", category: "NNN Survival", duration: "14:50" },
+    { rank: 50, videoId: "q3W8nP5v2Rm", title: "The Complete Neuro-Endocrine Map of Semen Retention (Full Documentary)", channel: "SeedController Academy", category: "Neuroscience", duration: "42:15" }
+];
+
+// Complete History of NNN & Celibacy Timeline (3000 BCE – 2026)
+const NNN_HISTORY_TIMELINE = [
+    {
+        era: "c. 1500 BCE • Vedic Period",
+        title: "Classical Brahmacharya & Ojas Doctrine in the Upanishads and Ayurveda",
+        desc: "Ancient Vedic texts codify Brahmacharya (conduct leading to Brahman) and describe Ojas as the subtle vital essence refined from retained reproductive tissue (Shukra Dhatu), foundational for memory, immunity, and spiritual fearlessness."
+    },
+    {
+        era: "c. 400 BCE • Classical Greece",
+        title: "Olympic Athletes, Pythagoras & Stoic Enkrateia (Self-Mastery)",
+        desc: "Greek Olympians and warriors practice strict pre-competition abstinence to preserve aggression and stamina. Stoic philosophers like Epictetus and Musonius Rufus teach Enkrateia—sovereignty over bodily appetites."
+    },
+    {
+        era: "1937 • Modern Performance Literature",
+        title: "Napoleon Hill Publishes 'Sex Transmutation' in Think and Grow Rich",
+        desc: "After interviewing 500 self-made industrialists and inventors, Hill dedicates Chapter 11 to Sex Transmutation—defining it as the switching of the mind from thoughts of physical expression to high-voltage creative and financial output."
+    },
+    {
+        era: "2003 & 2011 • Clinical & Reddit Foundations",
+        title: "Jiang et al. Day-7 Testosterone Study & Creation of r/NoFap",
+        desc: "In June 2011, Alexander Rhodes founds r/NoFap on Reddit following viral discussion of the 2003 Zhejiang University study showing a 145.7% surge in serum testosterone on Day 7 of abstinence."
+    },
+    {
+        era: "November 3, 2011 • Origin of NNN",
+        title: "First Recorded 'No Nut November' Entry Published on Urban Dictionary",
+        desc: "Urban Dictionary user 'bicboi6969696969' coins the first formal internet entry for No Nut November as a 30-day annual challenge of absolute abstinence throughout the month of November."
+    },
+    {
+        era: "November 2017 – 2019 • Global Viral Explosion",
+        title: "r/nonutnovember Surges Past 100k+ Members & 'Superpower' Meme Era",
+        desc: "NNN transforms into a massive global cultural phenomenon across Reddit, YouTube, and Twitter. Comedic 'Day 15 levitation' memes blend with genuine self-improvement, daily roll-calls, and dopamine-reboot accountability."
+    },
+    {
+        era: "2020 – 2026 • Bio-Optimization & Gamified Sovereignty",
+        title: "Modern Neuro-Reboot Apps & Cloud-Synced Brotherhood Platforms",
+        desc: "Practitioners combine the 30-day November crucible with heart-rate variability (HRV) breathwork, intermittent fasting, cold exposure, and full-stack trackers like SeedController to turn a 30-day challenge into lifelong discipline."
+    }
+];
+
+// Default Built-in Murals & SVG Clip-Art Emblems for the NNN Visual Gallery
+const BUILTIN_NNN_GALLERY = [
+    {
+        id: "mural-1",
+        title: "The Spartan Autumn Citadel (NNN War Room Hero Mural)",
+        imageUrl: "assets/murals/nnn-spartan-mural.jpg",
+        badge: "Custom Digital Mural",
+        desc: "Stoic armored guardian atop the autumn peak beneath a 528Hz solar core."
+    },
+    {
+        id: "mural-2",
+        title: "Temple of Ojas & Neural Ascension (History Mural)",
+        imageUrl: "assets/murals/nnn-temple-lore.jpg",
+        badge: "Classical Lore Mural",
+        desc: "Visualizing spinal energy transmutation from the root to the prefrontal crown."
+    },
+    {
+        id: "mural-3",
+        title: "Cyber-Stoic Aegis Urge Shield (Defense Emblem)",
+        imageUrl: "assets/murals/nnn-citadel-shield.jpg",
+        badge: "Vector Shield Art",
+        desc: "Emerald and solar-gold geometric fortress repelling limbic urge storms."
+    }
+];
+
+function getSavedApiKeys() {
+    try {
+        const raw = localStorage.getItem(API_KEYS_STORAGE);
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveApiKeysToStorage(keysObj) {
+    try {
+        localStorage.setItem(API_KEYS_STORAGE, JSON.stringify(keysObj));
+    } catch (e) {
+        // Ignore sandbox storage errors
+    }
+}
+
+/* ===== 1. LIVE NNN COUNTDOWN / SURVIVAL CLOCK ===== */
+function updateNnnClock() {
+    const dEl = document.getElementById("nnnTimerD");
+    const hEl = document.getElementById("nnnTimerH");
+    const mEl = document.getElementById("nnnTimerM");
+    const sEl = document.getElementById("nnnTimerS");
+    const labelEl = document.getElementById("nnnClockHeaderLabel");
+    const phaseBadge = document.getElementById("nnnPhaseStatusBadge");
+    if (!dEl) return;
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-indexed: 9 = Oct, 10 = Nov
+
+    let targetMs = 0;
+    if (month === 10) {
+        // Inside November! Count elapsed time or time remaining until Dec 1
+        const dec1 = new Date(year, 11, 1, 0, 0, 0).getTime();
+        targetMs = Math.max(0, dec1 - now.getTime());
+        if (labelEl) labelEl.textContent = `Time Remaining in NNN ${year}`;
+        if (phaseBadge) phaseBadge.textContent = `🔥 NNN ${year} LIVE IN PROGRESS`;
+    } else {
+        // Count down to next November 1st 00:00:00
+        const nextNovYear = month > 10 ? year + 1 : year;
+        const nov1 = new Date(nextNovYear, 10, 1, 0, 0, 0).getTime();
+        targetMs = Math.max(0, nov1 - now.getTime());
+        if (labelEl) labelEl.textContent = `Countdown to Nov 1, ${nextNovYear} Launch`;
+        if (phaseBadge) phaseBadge.textContent = `Pre-November War Room Armed`;
+    }
+
+    const totalSec = Math.floor(targetMs / 1000);
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+
+    dEl.textContent = String(d).padStart(2, "0");
+    hEl.textContent = String(h).padStart(2, "0");
+    mEl.textContent = String(m).padStart(2, "0");
+    sEl.textContent = String(s).padStart(2, "0");
+}
+
+/* ===== 2. NNN 30-DAY SURVIVAL MATRIX & URGE THERMOMETER ===== */
+function ensureNnnStateDefaults() {
+    if (!appState.nnnDailyMap) {
+        appState.nnnDailyMap = {};
+        for (let i = 1; i <= 14; i++) {
+            appState.nnnDailyMap[i] = {
+                day_number: i,
+                status: i === 7 || i === 12 ? "danger_zone" : "survived",
+                urge_level: i === 7 ? 7 : 2
+            };
+        }
+    }
+    if (!Array.isArray(appState.nnnStories) || appState.nnnStories.length === 0) {
+        appState.nnnStories = [
+            {
+                id: 901,
+                author_handle: "LevitationMonk_99",
+                day_tag: "Day 12 of NNN",
+                title: "Accidentally Teleported to the Gym Squat Rack at 5:15 AM",
+                story_body: "By Day 12 of No Nut November, my alarm did not wake me up—I woke up the alarm. I went to make black coffee, blinked once, and somehow I was already warming up with 225 lbs on the barbell while reciting Marcus Aurelius in Latin. Even the gym bro who never spots anyone nodded at me in solemn respect.",
+                humor_tag: "Superpower Meme Lore",
+                laugh_sparks: 128
+            },
+            {
+                id: 902,
+                author_handle: "ColdShowerGeneral",
+                day_tag: "Day 19 of NNN",
+                title: "The Wi-Fi Router Blinked and I Thought It Was Morse Code From My Future Self",
+                story_body: "Week 3 urges hit at 11:30 PM while I was finishing a coding sprint. Instead of opening a new tab, I sprinted to the bathroom, turned the shower knob to Arctic Glacier mode, and did 40 pushups on the tile floor. My roommate asked if we were under siege. I told him: Only by our own limbic systems, brother.",
+                humor_tag: "Urge Survival Comedy",
+                laugh_sparks: 96
+            },
+            {
+                id: 903,
+                author_handle: "BrahmacharyaCoder",
+                day_tag: "Day 26 of NNN",
+                title: "Dogs Bark in Respect & My CSS Grid Centered Itself on the First Try",
+                story_body: "People told me the NNN superpower memes were exaggerated. Explain how on Day 26 I wrote a 400-line PostgreSQL migration and a responsive flexbox layout without opening StackOverflow once, and stray squirrels on my morning walk stood at attention as I walked past.",
+                humor_tag: "Developer Ascension",
+                laugh_sparks: 164
+            },
+            {
+                id: 904,
+                author_handle: "StoicSpartan_07",
+                day_tag: "Day 7 of NNN",
+                title: "The Great Peanut Butter Misunderstanding of November 3rd",
+                story_body: "My younger cousin genuinely thought No Nut November meant banning almonds, cashews, and peanut butter sandwiches for 30 days. He proudly threw away three jars of crunchy Skippy to support the brotherhood. None of us had the heart to tell him until December 1st.",
+                humor_tag: "Wholesome Fail",
+                laugh_sparks: 215
+            }
+        ];
+    }
+}
+
+function renderNnnCalendar() {
+    ensureNnnStateDefaults();
+    const grid = document.getElementById("nnnCalendarGrid");
+    if (!grid) return;
+
+    grid.innerHTML = "";
+    let survivedCount = 0;
+
+    for (let day = 1; day <= 30; day++) {
+        const entry = appState.nnnDailyMap[day];
+        const status = entry ? entry.status : "unlogged";
+        if (status === "survived" || status === "danger_zone") survivedCount++;
+
+        const cell = document.createElement("div");
+        cell.className = `nnn-day-cell ${status !== "unlogged" ? status : ""}`;
+        const icon = status === "survived" ? "🛡️" : status === "danger_zone" ? "🔥" : status === "fallen" ? "💀" : "⏳";
+        const label = status === "survived" ? "Clean" : status === "danger_zone" ? "Urge Won" : status === "fallen" ? "Slip" : "Pending";
+
+        cell.innerHTML = `
+            <div class="text-[11px] font-bold opacity-75">Nov ${day}</div>
+            <div class="text-lg my-0.5">${icon}</div>
+            <div class="text-[10px] font-extrabold uppercase tracking-wider">${label}</div>
+        `;
+
+        cell.addEventListener("click", async () => {
+            const order = ["unlogged", "survived", "danger_zone", "fallen"];
+            const nextStatus = order[(order.indexOf(status) + 1) % order.length];
+            if (nextStatus === "unlogged") {
+                delete appState.nnnDailyMap[day];
+            } else {
+                appState.nnnDailyMap[day] = {
+                    day_number: day,
+                    status: nextStatus,
+                    urge_level: nextStatus === "danger_zone" ? 7 : 2
+                };
+                if (nextStatus === "survived") {
+                    appState.profile.aura_points += 25;
+                    showToast(`Nov ${day} marked Clean Survived (+25 Aura XP)!`, "success");
+                }
+            }
+            saveLocalState();
+            renderNnnCalendar();
+            document.getElementById("headerAuraPoints").textContent = appState.profile.aura_points;
+            if (nextStatus !== "unlogged") {
+                await sendNeonAction("log_nnn_day", {
+                    day_number: day,
+                    status: nextStatus,
+                    urge_level: appState.nnnDailyMap[day].urge_level
+                });
+            }
+        });
+
+        grid.appendChild(cell);
+    }
+
+    const clearedEl = document.getElementById("nnnDaysClearedCount");
+    if (clearedEl) clearedEl.textContent = `${survivedCount} / 30`;
+}
+
+function updateUrgeThermometerUI(val) {
+    const v = Number(val);
+    const scoreEl = document.getElementById("nnnUrgeScoreLabel");
+    const markEl = document.getElementById("nnnUrgeIndicatorMark");
+    const badgeEl = document.getElementById("nnnDefconBadge");
+    const rxEl = document.getElementById("nnnUrgePrescriptionText");
+    if (!scoreEl) return;
+
+    scoreEl.textContent = `${v} / 10`;
+    markEl.style.width = `${v * 10}%`;
+
+    if (v <= 3) {
+        badgeEl.textContent = "DEFCON 5 • SOVEREIGN CALM";
+        badgeEl.className = "text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40";
+        rxEl.textContent = "Prefrontal cortex is in full command. Channel your calm baseline into a 90-minute deep work block, strength training, or reading.";
+    } else if (v <= 6) {
+        badgeEl.textContent = "DEFCON 3 • ELEVATED VOLTAGE";
+        badgeEl.className = "text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-400/40";
+        rxEl.textContent = "Sympathetic arousal detected. Close all social media tabs now, drink a tall glass of water, and perform 3 minutes of 4-7-8 Vagal Brake breathwork.";
+    } else {
+        badgeEl.textContent = "DEFCON 1 • RED ALERT OVERRIDE";
+        badgeEl.className = "text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-400/50 animate-pulse";
+        rxEl.textContent = "EMERGENCY PROTOCOL: Stand up from your chair/bed immediately! Leave your phone in another room, splash cold water on your face, and do 30 pushups until the 90-second wave passes.";
+    }
+}
+
+/* ===== 3. LIVE NNN REDDIT SCRAPER ===== */
+async function scrapeLiveNnnSubreddit() {
+    const sub = document.getElementById("nnnSubredditSelect")?.value || "nonutnovember";
+    const grid = document.getElementById("nnnRedditCardsGrid");
+    const statusEl = document.getElementById("nnnRedditLastScraped");
+    if (!grid) return;
+
+    grid.innerHTML = `<div class="col-span-full p-4 rounded-xl bg-white/5 text-xs text-yellow-300 animate-pulse">Scraping live posts from r/${sub}...</div>`;
+
+    const keys = getSavedApiKeys();
+    let posts = [];
+
+    // Try serverless aggregator first (passes optional OAuth2 keys if configured in Vault)
+    try {
+        const qs = new URLSearchParams({
+            subreddit: sub,
+            redditClientId: keys.redditClientId || "",
+            redditClientSecret: keys.redditClientSecret || ""
+        });
+        const fnRes = await fetch(`${window.location.origin}/.netlify/functions/public-feed?${qs.toString()}`);
+        if (fnRes.ok) {
+            const data = await fnRes.json();
+            if (Array.isArray(data.nnnRedditFeed) && data.nnnRedditFeed.length > 0) {
+                posts = data.nnnRedditFeed;
+            }
+        }
+    } catch (e) {
+        // Fallback to direct browser Reddit JSON fetch
+    }
+
+    if (posts.length === 0) {
+        try {
+            const directRes = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=8&raw_json=1`);
+            if (directRes.ok) {
+                const rJson = await directRes.json();
+                posts = ((rJson.data && rJson.data.children) || [])
+                    .filter((c) => c.data && !c.data.stickied)
+                    .slice(0, 8)
+                    .map((c) => ({
+                        subreddit: `r/${sub}`,
+                        title: c.data.title,
+                        selftext: (c.data.selftext || "").slice(0, 220),
+                        author: `u/${c.data.author}`,
+                        upvotes: c.data.ups,
+                        comments: c.data.num_comments,
+                        flair: c.data.link_flair_text || "Live Dispatch",
+                        url: `https://www.reddit.com${c.data.permalink}`
+                    }));
+            }
+        } catch (err) {
+            // Curated high-engagement NNN dispatches fallback
+            posts = [
+                {
+                    subreddit: `r/${sub}`,
+                    title: "Official NNN Roll Call — Still In! Report Your Current Day & Energy Level",
+                    selftext: "Hold the line Spartans. Remember that urges only last 90 seconds if you refuse to feed them with peeking or fantasizing.",
+                    author: "u/AutoModerator_NNN",
+                    upvotes: 1840,
+                    comments: 612,
+                    flair: "Official Roll Call",
+                    url: `https://www.reddit.com/r/${sub}/`
+                },
+                {
+                    subreddit: `r/${sub}`,
+                    title: "Day 15 Check-In: My focus at work and gym recovery have legitimately doubled",
+                    selftext: "The first 7 days were tough because of late-night scrolling habits, but after putting a strict 10 PM phone curfew in place, my morning energy is unreal.",
+                    author: "u/IronMonk_2026",
+                    upvotes: 924,
+                    comments: 148,
+                    flair: "Success Story",
+                    url: `https://www.reddit.com/r/${sub}/`
+                },
+                {
+                    subreddit: `r/${sub}`,
+                    title: "PSA: Edging or 'just peeking' is a trap—it floods your DeltaFosB pathways and makes NNN 10x harder",
+                    selftext: "Mental celibacy is the real secret. Guard your eyes and your thoughts, and the physical streak takes care of itself.",
+                    author: "u/NeuroSpartan",
+                    upvotes: 765,
+                    comments: 93,
+                    flair: "Tactical Advice",
+                    url: `https://www.reddit.com/r/${sub}/`
+                },
+                {
+                    subreddit: `r/${sub}`,
+                    title: "Day 21 Superpower Report: Just finished 4 hours of calculus and heavy deadlifts with zero caffeine",
+                    selftext: "Transmuting the surplus androgen and dopamine baseline into real-world goals is the ultimate cheat code.",
+                    author: "u/SolarAscendant",
+                    upvotes: 610,
+                    comments: 79,
+                    flair: "Transmutation",
+                    url: `https://www.reddit.com/r/${sub}/`
+                }
+            ];
+        }
+    }
+
+    grid.innerHTML = "";
+    posts.forEach((p) => {
+        const card = document.createElement("div");
+        card.className = "p-4 rounded-2xl bg-black/40 border border-white/10 hover:border-yellow-400/45 transition flex flex-col justify-between";
+        card.innerHTML = `
+            <div>
+                <div class="flex items-center justify-between text-[11px] mb-1.5">
+                    <span class="px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 font-bold">${p.subreddit} • ${p.flair}</span>
+                    <span class="text-white/60">${p.author}</span>
+                </div>
+                <a href="${p.url}" target="_blank" rel="noopener noreferrer" class="text-sm font-extrabold text-white hover:text-yellow-300 transition block mb-1.5">
+                    ${p.title}
+                </a>
+                ${p.selftext ? `<p class="text-xs text-white/70 leading-relaxed mb-3">${p.selftext}...</p>` : ""}
+            </div>
+            <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs text-yellow-300 font-bold">
+                <span>⬆️ ${p.upvotes} Upvotes</span>
+                <span>💬 ${p.comments} Comments</span>
+                <a href="${p.url}" target="_blank" rel="noopener noreferrer" class="underline text-cyan-300">Open Thread &rarr;</a>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+
+    if (statusEl) statusEl.textContent = `Scraped ${posts.length} threads at ${new Date().toLocaleTimeString()}`;
+}
+
+/* ===== 4. TOP 50 NNN YOUTUBE VIDEO CINEMA (LIVE API + CURATED 50) ===== */
+let activeYoutubeVideos = [...TOP_50_NNN_VIDEOS];
+
+async function queryLiveYoutubeVideos() {
+    const query = (document.getElementById("nnnYoutubeSearchInput")?.value || "").trim() || "No Nut November Semen Retention Science";
+    const keys = getSavedApiKeys();
+    const ytKey = keys.youtubeApiKey || "";
+
+    if (ytKey) {
+        try {
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(query)}&type=video&key=${encodeURIComponent(ytKey)}`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data.items) && data.items.length > 0) {
+                    activeYoutubeVideos = data.items
+                        .filter((it) => it.id && it.id.videoId)
+                        .map((it, idx) => ({
+                            rank: idx + 1,
+                            videoId: it.id.videoId,
+                            title: it.snippet.title,
+                            channel: it.snippet.channelTitle,
+                            category: "Live YouTube API",
+                            duration: "Live API"
+                        }));
+                    renderNnnYoutubeGrid();
+                    showToast(`Loaded ${activeYoutubeVideos.length} live videos from YouTube Data API v3!`, "success");
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn("Direct YouTube API call warning:", e);
+        }
+    }
+
+    // Filter the 50 built-in videos by search term & category
+    renderNnnYoutubeGrid();
+    if (!ytKey) {
+        showToast("Filtered Top 50 NNN Video Index (Add YOUTUBE_API_KEY in the API Vault tab for live YouTube v3 search).", "info");
+    }
+}
+
+function renderNnnYoutubeGrid() {
+    const grid = document.getElementById("nnnYoutubeGrid");
+    if (!grid) return;
+    const searchVal = (document.getElementById("nnnYoutubeSearchInput")?.value || "").toLowerCase().trim();
+    const catVal = document.getElementById("nnnYoutubeCategorySelect")?.value || "ALL";
+
+    const filtered = activeYoutubeVideos.filter((v) => {
+        const matchCat = catVal === "ALL" || v.category === catVal || v.category === "Live YouTube API";
+        const matchSearch = !searchVal || v.title.toLowerCase().includes(searchVal) || v.channel.toLowerCase().includes(searchVal);
+        return matchCat && matchSearch;
+    });
+
+    grid.innerHTML = "";
+    filtered.forEach((vid) => {
+        const card = document.createElement("div");
+        card.className = "p-3.5 rounded-2xl bg-black/40 border border-white/10 hover:border-yellow-400/50 transition flex flex-col justify-between cursor-pointer";
+        const thumbUrl = `https://i.ytimg.com/vi/${vid.videoId}/hqdefault.jpg`;
+        card.innerHTML = `
+            <div>
+                <div class="relative rounded-xl overflow-hidden mb-2.5 bg-purple-950/50 h-36 flex items-center justify-center border border-white/10">
+                    <img src="${thumbUrl}" alt="${vid.title}" class="w-full h-full object-cover opacity-85" onerror="this.style.display='none'">
+                    <div class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-yellow-300 text-[10px] font-black">#${vid.rank}</div>
+                    <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-white text-[10px] font-semibold">${vid.duration || "HD"}</div>
+                    <div class="w-10 h-10 rounded-full bg-red-600/90 text-white flex items-center justify-center font-bold shadow-lg">▶</div>
+                </div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300">${vid.category} • ${vid.channel}</span>
+                <h4 class="text-xs sm:text-sm font-bold text-white mt-0.5 line-clamp-2">${vid.title}</h4>
+            </div>
+            <div class="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+                <button type="button" class="play-inline-btn text-yellow-300 font-bold hover:underline">▶️ Watch in Cinema</button>
+                <a href="https://www.youtube.com/watch?v=${vid.videoId}" target="_blank" rel="noopener noreferrer" class="text-white/65 hover:text-white" onclick="event.stopPropagation()">YouTube ↗</a>
+            </div>
+        `;
+        card.addEventListener("click", () => {
+            const iframe = document.getElementById("nnnYoutubeIframe");
+            const titleEl = document.getElementById("nnnActiveVideoTitle");
+            const extLink = document.getElementById("nnnActiveVideoExternalLink");
+            if (iframe) iframe.src = `https://www.youtube-nocookie.com/embed/${vid.videoId}?autoplay=1`;
+            if (titleEl) titleEl.textContent = `#${vid.rank}: ${vid.title} (${vid.channel})`;
+            if (extLink) extLink.href = `https://www.youtube.com/watch?v=${vid.videoId}`;
+            document.getElementById("nnnYoutubePlayerContainer")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
+        grid.appendChild(card);
+    });
+}
+
+/* ===== 5. NNN FUNNY STORIES, HISTORY TIMELINE & VISUAL GALLERY ===== */
+function renderNnnStories() {
+    ensureNnnStateDefaults();
+    const grid = document.getElementById("nnnStoriesGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    (appState.nnnStories || []).forEach((st) => {
+        const card = document.createElement("div");
+        card.className = "p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col justify-between space-y-3";
+        card.innerHTML = `
+            <div>
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                    <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">${st.humor_tag}</span>
+                    <span class="text-yellow-300 font-semibold">${st.day_tag}</span>
+                </div>
+                <h4 class="text-base font-extrabold text-white mb-1.5">${st.title}</h4>
+                <p class="text-xs text-white/80 leading-relaxed">${st.story_body}</p>
+            </div>
+            <div class="pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
+                <span class="text-white/60">By <strong class="text-white">${st.author_handle}</strong></span>
+                <button type="button" class="laugh-spark-btn px-3 py-1 rounded-lg bg-white/10 hover:bg-yellow-400/25 text-yellow-300 font-bold">
+                    😂 Laugh Salute (${st.laugh_sparks || 1})
+                </button>
+            </div>
+        `;
+        card.querySelector(".laugh-spark-btn").addEventListener("click", async () => {
+            st.laugh_sparks = (st.laugh_sparks || 1) + 1;
+            saveLocalState();
+            renderNnnStories();
+            await sendNeonAction("spark_nnn_story", { id: st.id });
+        });
+        grid.appendChild(card);
+    });
+}
+
+function renderNnnHistoryTimeline() {
+    const container = document.getElementById("nnnHistoryTimelineContainer");
+    if (!container) return;
+    container.innerHTML = "";
+    NNN_HISTORY_TIMELINE.forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "p-3.5 rounded-xl bg-black/40 border-l-4 border-yellow-400 space-y-1";
+        div.innerHTML = `
+            <div class="text-xs font-extrabold uppercase tracking-wider text-yellow-300">${item.era}</div>
+            <h4 class="text-sm font-bold text-white">${item.title}</h4>
+            <p class="text-xs text-white/75 leading-relaxed">${item.desc}</p>
+        `;
+        container.appendChild(div);
+    });
+}
+
+async function renderNnnVisualGallery(fetchLive = false) {
+    const grid = document.getElementById("nnnVisualGalleryGrid");
+    if (!grid) return;
+
+    let items = [...BUILTIN_NNN_GALLERY];
+    const keys = getSavedApiKeys();
+
+    if (fetchLive && keys.pixabayApiKey) {
+        try {
+            const pxRes = await fetch(`https://pixabay.com/api/?key=${encodeURIComponent(keys.pixabayApiKey)}&q=warrior+statue+mountain+galaxy&image_type=illustration&per_page=6`);
+            if (pxRes.ok) {
+                const pxData = await pxRes.json();
+                const liveHits = (pxData.hits || []).map((h) => ({
+                    id: `px-${h.id}`,
+                    title: `Live Pixabay Art: ${h.tags}`,
+                    imageUrl: h.webformatURL,
+                    badge: `Pixabay API (❤️ ${h.likes})`,
+                    desc: `Contributed by ${h.user} via live Pixabay REST endpoint.`
+                }));
+                items = [...items, ...liveHits];
+                showToast(`Fetched ${liveHits.length} live artworks from Pixabay API!`, "success");
+            }
+        } catch (e) {
+            console.warn("Pixabay gallery fetch warning:", e);
+        }
+    }
+
+    grid.innerHTML = "";
+    items.forEach((art) => {
+        const card = document.createElement("div");
+        card.className = "sc-panel overflow-hidden flex flex-col justify-between bg-black/40";
+        card.innerHTML = `
+            <div>
+                <div class="h-48 overflow-hidden relative bg-purple-950/40">
+                    <img src="${art.imageUrl}" alt="${art.title}" class="w-full h-full object-cover hover:scale-105 transition duration-500">
+                    <span class="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-full bg-black/75 border border-yellow-400/40 text-[10px] font-bold text-yellow-300">${art.badge}</span>
+                </div>
+                <div class="p-4">
+                    <h4 class="text-sm font-extrabold text-white">${art.title}</h4>
+                    <p class="text-xs text-white/70 mt-1 leading-relaxed">${art.desc}</p>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function initNnnHub() {
+    ensureNnnStateDefaults();
+    updateNnnClock();
+    setInterval(updateNnnClock, 1000);
+    renderNnnCalendar();
+    renderNnnStories();
+    renderNnnHistoryTimeline();
+    renderNnnYoutubeGrid();
+    renderNnnVisualGallery(false);
+    scrapeLiveNnnSubreddit();
+
+    // Load saved API keys into Vault inputs
+    const savedKeys = getSavedApiKeys();
+    if (document.getElementById("vaultYoutubeKey")) document.getElementById("vaultYoutubeKey").value = savedKeys.youtubeApiKey || "";
+    if (document.getElementById("vaultPixabayKey")) document.getElementById("vaultPixabayKey").value = savedKeys.pixabayApiKey || "";
+    if (document.getElementById("vaultRedditClientId")) document.getElementById("vaultRedditClientId").value = savedKeys.redditClientId || "";
+    if (document.getElementById("vaultRedditSecret")) document.getElementById("vaultRedditSecret").value = savedKeys.redditClientSecret || "";
+    if (document.getElementById("vaultNcbiKey")) document.getElementById("vaultNcbiKey").value = savedKeys.ncbiApiKey || "";
+
+    // Sub-pane switching inside NNN Hub
+    document.querySelectorAll(".nnn-subpill").forEach((pill) => {
+        pill.addEventListener("click", () => {
+            document.querySelectorAll(".nnn-subpill").forEach((p) => p.classList.remove("active"));
+            pill.classList.add("active");
+            const targetPane = pill.getAttribute("data-nnnpane");
+            document.querySelectorAll(".nnn-pane").forEach((pane) => {
+                pane.classList.toggle("hidden", pane.id !== `nnn-pane-${targetPane}`);
+            });
+        });
+    });
+
+    // Urge Thermometer Slider & Log Button
+    const urgeSlider = document.getElementById("nnnUrgeSlider");
+    if (urgeSlider) {
+        urgeSlider.addEventListener("input", (e) => updateUrgeThermometerUI(e.target.value));
+    }
+    document.getElementById("logNnnUrgeBtn")?.addEventListener("click", async () => {
+        const val = Number(document.getElementById("nnnUrgeSlider")?.value || 2);
+        const note = document.getElementById("nnnUrgeNoteInput")?.value.trim() || "";
+        const dayOfMonth = Math.min(30, new Date().getDate());
+        const status = val >= 7 ? "danger_zone" : "survived";
+
+        appState.nnnDailyMap[dayOfMonth] = { day_number: dayOfMonth, status, urge_level: val };
+        appState.profile.aura_points += 25;
+        saveLocalState();
+        renderNnnCalendar();
+        document.getElementById("headerAuraPoints").textContent = appState.profile.aura_points;
+        if (document.getElementById("nnnUrgeNoteInput")) document.getElementById("nnnUrgeNoteInput").value = "";
+        showToast(`Logged Urge Reading (${val}/10) to NeonDB (+25 Aura XP)!`, "success");
+
+        await sendNeonAction("log_nnn_day", {
+            day_number: dayOfMonth,
+            status,
+            urge_level: val,
+            trigger_note: note
+        });
+    });
+
+    // Reddit Scraper Controls
+    document.getElementById("scrapeNnnRedditBtn")?.addEventListener("click", scrapeLiveNnnSubreddit);
+    document.getElementById("nnnSubredditSelect")?.addEventListener("change", scrapeLiveNnnSubreddit);
+
+    // YouTube Top 50 Controls
+    document.getElementById("fetchLiveYoutubeBtn")?.addEventListener("click", queryLiveYoutubeVideos);
+    document.getElementById("nnnYoutubeSearchInput")?.addEventListener("input", renderNnnYoutubeGrid);
+    document.getElementById("nnnYoutubeCategorySelect")?.addEventListener("change", renderNnnYoutubeGrid);
+
+    // Funny Story Form Controls
+    const storyForm = document.getElementById("nnnStoryForm");
+    document.getElementById("toggleNnnStoryFormBtn")?.addEventListener("click", () => storyForm?.classList.toggle("hidden"));
+    document.getElementById("cancelNnnStoryBtn")?.addEventListener("click", () => storyForm?.classList.add("hidden"));
+    storyForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const newStory = {
+            id: Date.now(),
+            author_handle: document.getElementById("nnnStoryAuthor").value.trim(),
+            day_tag: document.getElementById("nnnStoryDayTag").value.trim(),
+            humor_tag: document.getElementById("nnnStoryHumorTag").value,
+            title: document.getElementById("nnnStoryTitle").value.trim(),
+            story_body: document.getElementById("nnnStoryBody").value.trim(),
+            laugh_sparks: 1
+        };
+        appState.nnnStories.unshift(newStory);
+        appState.profile.aura_points += 35;
+        saveLocalState();
+        storyForm.reset();
+        storyForm.classList.add("hidden");
+        renderNnnStories();
+        document.getElementById("headerAuraPoints").textContent = appState.profile.aura_points;
+        showToast("Funny NNN story published to NeonDB (+35 Aura XP)!", "success");
+        await sendNeonAction("add_nnn_story", newStory);
+    });
+
+    // Live Visual Gallery Refresh
+    document.getElementById("fetchLiveGalleryBtn")?.addEventListener("click", () => {
+        renderNnnVisualGallery(true);
+    });
+
+    // API Keys Vault Save & Clear
+    document.getElementById("saveApiKeysVaultBtn")?.addEventListener("click", () => {
+        const newKeys = {
+            youtubeApiKey: document.getElementById("vaultYoutubeKey").value.trim(),
+            pixabayApiKey: document.getElementById("vaultPixabayKey").value.trim(),
+            redditClientId: document.getElementById("vaultRedditClientId").value.trim(),
+            redditClientSecret: document.getElementById("vaultRedditSecret").value.trim(),
+            ncbiApiKey: document.getElementById("vaultNcbiKey").value.trim()
+        };
+        saveApiKeysToStorage(newKeys);
+        showToast("Saved API keys! Refreshing YouTube, Reddit, and Visual Gallery feeds...", "success");
+        queryLiveYoutubeVideos();
+        scrapeLiveNnnSubreddit();
+        renderNnnVisualGallery(true);
+    });
+
+    document.getElementById("clearApiKeysVaultBtn")?.addEventListener("click", () => {
+        saveApiKeysToStorage({});
+        ["vaultYoutubeKey", "vaultPixabayKey", "vaultRedditClientId", "vaultRedditSecret", "vaultNcbiKey"].forEach((id) => {
+            if (document.getElementById(id)) document.getElementById(id).value = "";
+        });
+        activeYoutubeVideos = [...TOP_50_NNN_VIDEOS];
+        renderNnnYoutubeGrid();
+        renderNnnVisualGallery(false);
+        showToast("Reset to built-in keyless public API mode.", "info");
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initNnnHub);

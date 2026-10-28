@@ -76,6 +76,9 @@
                 <button type="button" class="nav-tab active" data-tab="dashboard">
                     <span>🏛️</span> <span>Command Center</span>
                 </button>
+                                <button type="button" class="nav-tab" data-tab="nnn">
+                    <span>🍂</span> <span>NNN Challenge Hub</span>
+                </button>
                 <button type="button" class="nav-tab" data-tab="reboot">
                     <span>🪜</span> <span>90-Day Reboot &amp; Ranks</span>
                 </button>
@@ -333,6 +336,364 @@
                     </div>
                 </div>
             </div>
+        </section>
+
+        
+        <!-- =================================================================
+             TAB NNN: NO NUT NOVEMBER (NNN) CHALLENGE MEGA-HUB
+             ================================================================= -->
+        <section id="tab-nnn" class="tab-section hidden space-y-6">
+
+            <!-- NNN Hero Mural Banner with Custom Artwork & Live November Countdown / Survival Clock -->
+            <div class="nnn-hero-mural relative min-h-[290px] flex flex-col justify-between p-5 sm:p-7">
+                <img src="assets/murals/nnn-spartan-mural.jpg" alt="NNN Spartan Autumn Citadel Mural" class="nnn-mural-bg absolute inset-0 w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-r from-[#0f0524]/95 via-[#1a0e36]/85 to-[#0f0524]/70"></div>
+
+                <div class="relative z-10 flex flex-wrap items-start justify-between gap-4">
+                    <div class="max-w-2xl space-y-2">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/25 border border-amber-400/50 text-amber-300 text-xs font-extrabold uppercase tracking-widest">
+                            <span>🍂 Global Annual Crucible</span>
+                            <span>•</span>
+                            <span id="nnnPhaseStatusBadge">November Protocol Armed</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                            NO NUT NOVEMBER <span class="text-yellow-400">WAR ROOM</span>
+                        </h2>
+                        <p class="text-xs sm:text-sm text-white/85 leading-relaxed">
+                            30 days of iron discipline, zero concessions, and full bio-energetic transmutation. Track your daily survival matrix, measure urge Defcon levels, scrape live <code>r/nonutnovember</code> dispatches, watch the Top 50 NNN &amp; retention briefings, and explore the lore.
+                        </p>
+                    </div>
+
+                    <!-- Live NNN Countdown / Active Survival Clock Card -->
+                    <div class="p-4 rounded-2xl bg-black/65 backdrop-blur-md border border-yellow-400/45 text-center min-w-[250px]">
+                        <div id="nnnClockHeaderLabel" class="text-[11px] font-bold uppercase tracking-widest text-yellow-300 mb-1">
+                            Countdown to Nov 1 (00:00:00)
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 text-center my-1.5">
+                            <div class="p-2 rounded-xl bg-white/10">
+                                <div id="nnnTimerD" class="text-xl sm:text-2xl font-black text-yellow-400 tabular-nums">03</div>
+                                <div class="text-[10px] uppercase text-white/70">Days</div>
+                            </div>
+                            <div class="p-2 rounded-xl bg-white/10">
+                                <div id="nnnTimerH" class="text-xl sm:text-2xl font-black text-white tabular-nums">04</div>
+                                <div class="text-[10px] uppercase text-white/70">Hrs</div>
+                            </div>
+                            <div class="p-2 rounded-xl bg-white/10">
+                                <div id="nnnTimerM" class="text-xl sm:text-2xl font-black text-white tabular-nums">12</div>
+                                <div class="text-[10px] uppercase text-white/70">Min</div>
+                            </div>
+                            <div class="p-2 rounded-xl bg-white/10">
+                                <div id="nnnTimerS" class="text-xl sm:text-2xl font-black text-emerald-400 tabular-nums">45</div>
+                                <div class="text-[10px] uppercase text-white/70">Sec</div>
+                            </div>
+                        </div>
+                        <div id="nnnSurvivalRankTag" class="text-xs font-bold text-emerald-300 mt-1">
+                            🛡️ Status: Combat Ready • <span id="nnnDaysClearedCount">14 / 30</span> Days Logged
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub-Navigation Bar for the 7 NNN Modules -->
+                <div class="relative z-10 mt-6 pt-4 border-t border-white/15 flex items-center gap-2 overflow-x-auto pb-1">
+                    <button type="button" class="nnn-subpill active" data-nnnpane="tracker">🗓️ 30-Day Tracker &amp; Urge Meter</button>
+                    <button type="button" class="nnn-subpill" data-nnnpane="reddit">📡 Live Reddit Scraper (API)</button>
+                    <button type="button" class="nnn-subpill" data-nnnpane="youtube">🎬 Top 50 NNN YouTube Videos</button>
+                    <button type="button" class="nnn-subpill" data-nnnpane="stories">😂 Funny Stories &amp; Lore</button>
+                    <button type="button" class="nnn-subpill" data-nnnpane="history">🏛️ History of NNN (2011–2026)</button>
+                    <button type="button" class="nnn-subpill" data-nnnpane="gallery">🖼️ Murals, Clip Art &amp; Posters</button>
+                    <button type="button" class="nnn-subpill" data-nnnpane="apikeys">🔑 Live API Keys Vault</button>
+                </div>
+            </div>
+
+            <!-- =============================================================
+                 NNN PANE 1: 30-DAY SURVIVAL TRACKER & URGE THERMOMETER GAUGE
+                 ============================================================= -->
+            <div id="nnn-pane-tracker" class="nnn-pane space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                    <!-- 30-Day Interactive November Survival Matrix (7 cols) -->
+                    <div class="lg:col-span-7 sc-panel p-5 sm:p-6">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <div>
+                                <span class="text-xs uppercase tracking-widest text-yellow-400 font-bold">NeonDB Persistent 30-Day Grid</span>
+                                <h3 class="text-xl font-extrabold text-white">November Daily Survival Matrix</h3>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="px-2 py-0.5 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">✓ Clean</span>
+                                <span class="px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-400/40">⚠️ High Urge</span>
+                                <span class="px-2 py-0.5 rounded bg-red-500/25 text-red-300 border border-red-400/40">✕ Fallen</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-white/65 mb-4">
+                            Click any day (Day 1 to Day 30) to cycle its status (<strong>Clean Survived</strong> &rarr; <strong>High Urge Survived</strong> &rarr; <strong>Unlogged</strong>) and sync immediately with your <code>sc_nnn_daily_tracker</code> table in NeonDB.
+                        </p>
+                        <div id="nnnCalendarGrid" class="grid grid-cols-5 sm:grid-cols-6 gap-2.5"></div>
+                    </div>
+
+                    <!-- Interactive NNN Urge Measure / Defcon Thermometer (5 cols) -->
+                    <div class="lg:col-span-5 sc-panel p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs uppercase tracking-widest text-amber-300 font-bold">Real-Time Bio-Telemetry</span>
+                                <span id="nnnDefconBadge" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">DEFCON 5 • STABLE</span>
+                            </div>
+                            <h3 class="text-xl font-extrabold text-white mb-1">NNN Urge Intensity Thermometer</h3>
+                            <p class="text-xs text-white/65 mb-4">Slide to measure your current urge voltage (0–10) and receive an instant tactical countermeasure &amp; log it to NeonDB.</p>
+
+                            <div class="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
+                                <div class="flex items-center justify-between text-xs font-bold">
+                                    <span class="text-white/80">Current Urge Voltage:</span>
+                                    <span id="nnnUrgeScoreLabel" class="text-lg font-black text-yellow-400">2 / 10</span>
+                                </div>
+                                <input type="range" id="nnnUrgeSlider" min="0" max="10" value="2" class="w-full accent-yellow-400 cursor-pointer">
+                                <div class="urge-thermometer-bar">
+                                    <div id="nnnUrgeIndicatorMark" class="h-full bg-white/25 transition-all" style="width: 20%"></div>
+                                </div>
+                                <div class="flex justify-between text-[10px] text-white/55 font-semibold uppercase">
+                                    <span>0 Zen Monk</span>
+                                    <span>4 Restless</span>
+                                    <span>7 Danger Zone</span>
+                                    <span>10 Red Alert</span>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Tactical Prescription Box -->
+                            <div class="mt-4 p-4 rounded-2xl bg-gradient-to-br from-purple-950/60 to-black/50 border border-yellow-400/35 space-y-2">
+                                <div class="text-xs font-bold uppercase tracking-wider text-yellow-300">⚡ Prescribed Countermeasure Protocol</div>
+                                <p id="nnnUrgePrescriptionText" class="text-xs sm:text-sm text-white/90 leading-relaxed">
+                                    Prefrontal cortex is in full command. Channel your calm baseline into a 90-minute deep work block or read 10 pages of Stoic philosophy.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 pt-2">
+                            <input type="text" id="nnnUrgeNoteInput" class="sc-input text-xs" placeholder="Optional note (e.g., Day 14 late night urge defeated with cold water)...">
+                            <button type="button" id="logNnnUrgeBtn" class="btn-gold w-full text-xs sm:text-sm py-2.5">
+                                🛡️ Log Urge Reading &amp; Claim +25 Aura XP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =============================================================
+                 NNN PANE 2: LIVE REDDIT SCRAPER (WITH OAUTH2 API KEY + JSON)
+                 ============================================================= -->
+            <div id="nnn-pane-reddit" class="nnn-pane hidden space-y-5">
+                <div class="sc-panel p-5 sm:p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                        <div>
+                            <span class="text-xs uppercase tracking-widest text-orange-400 font-bold">Live Subreddit War-Room Scraper</span>
+                            <h3 class="text-2xl font-extrabold text-white">Real-Time NNN &amp; Retention Community Feed</h3>
+                            <p class="text-xs text-white/70 mt-1">
+                                Scrapes live posts, flairs, upvote velocity, and survival reports from <code>r/nonutnovember</code>, <code>r/SemenRetention</code>, and <code>r/NoFap</code> via OAuth2 API credentials or public JSON endpoints.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="nnnSubredditSelect" class="sc-select text-xs sm:text-sm py-2 w-48">
+                                <option value="nonutnovember">r/nonutnovember</option>
+                                <option value="SemenRetention">r/SemenRetention</option>
+                                <option value="NoFap">r/NoFap</option>
+                                <option value="selfimprovement">r/selfimprovement</option>
+                            </select>
+                            <button type="button" id="scrapeNnnRedditBtn" class="btn-gold text-xs sm:text-sm py-2.5 px-4">
+                                📡 Scrape Live Subreddit
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="nnnRedditAuthStatus" class="mb-4 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-yellow-300 flex items-center justify-between">
+                        <span>🔗 Scraper Engine: <strong>Reddit OAuth2 + Public JSON Hybrid</strong></span>
+                        <span id="nnnRedditLastScraped">Synced Just Now</span>
+                    </div>
+
+                    <div id="nnnRedditCardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+
+            <!-- =============================================================
+                 NNN PANE 3: DYNAMIC YOUTUBE CONTENT PAGE (TOP 50 NNN VIDEOS)
+                 ============================================================= -->
+            <div id="nnn-pane-youtube" class="nnn-pane hidden space-y-6">
+                <div class="sc-panel p-5 sm:p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+                        <div>
+                            <span class="text-xs uppercase tracking-widest text-red-400 font-bold">YouTube Data API v3 + Curated Top 50 Index</span>
+                            <h3 class="text-2xl font-extrabold text-white">Top 50 NNN, Retention &amp; Dopamine Reboot Videos</h3>
+                            <p class="text-xs text-white/70 mt-1">
+                                Search live via <strong>YouTube Data API v3</strong> (using <code>YOUTUBE_API_KEY</code>) or browse the complete 50-video master index with instant in-app cinema playback.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="text" id="nnnYoutubeSearchInput" class="sc-input text-xs sm:text-sm py-2 w-56" placeholder="Search NNN / Retention videos...">
+                            <select id="nnnYoutubeCategorySelect" class="sc-select text-xs sm:text-sm py-2 w-44">
+                                <option value="ALL">All 50 Videos</option>
+                                <option value="NNN Survival">NNN Survival Guides</option>
+                                <option value="Neuroscience">Dopamine &amp; Science</option>
+                                <option value="Transmutation">Ojas &amp; Transmutation</option>
+                                <option value="Stoic Discipline">Stoic Mindset</option>
+                            </select>
+                            <button type="button" id="fetchLiveYoutubeBtn" class="btn-gold text-xs sm:text-sm py-2 px-4">
+                                🎬 Query YouTube API
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Embedded In-App Cinema Player -->
+                    <div id="nnnYoutubePlayerContainer" class="mb-6 p-4 rounded-2xl bg-black/60 border border-yellow-400/40">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <div>
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-yellow-400">Now Playing in SeedController Cinema</span>
+                                <h4 id="nnnActiveVideoTitle" class="text-base sm:text-lg font-extrabold text-white">Select any of the 50 videos below to watch inline or open on YouTube</h4>
+                            </div>
+                            <a id="nnnActiveVideoExternalLink" href="https://www.youtube.com/results?search_query=no+nut+november+semen+retention" target="_blank" rel="noopener noreferrer" class="btn-secondary text-xs py-1.5 px-3">
+                                ↗️ Open on YouTube
+                            </a>
+                        </div>
+                        <div class="relative w-full overflow-hidden rounded-xl border border-white/15 bg-black" style="padding-top: 42%;">
+                            <iframe id="nnnYoutubeIframe" class="absolute inset-0 w-full h-full" src="https://www.youtube-nocookie.com/embed/uh13bd3q2P0" title="SeedController NNN Video Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>
+                    </div>
+
+                    <!-- Top 50 Video Cards Grid -->
+                    <div id="nnnYoutubeGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[680px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- =============================================================
+                 NNN PANE 4: FUNNY STORIES, MEME LORE & WAR ROOM CHRONICLES
+                 ============================================================= -->
+            <div id="nnn-pane-stories" class="nnn-pane hidden space-y-6">
+                <div class="sc-panel p-5 sm:p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+                        <div>
+                            <span class="text-xs uppercase tracking-widest text-yellow-400 font-bold">Brotherhood Humor &amp; Superpower Lore</span>
+                            <h3 class="text-2xl font-extrabold text-white">NNN Funny Stories &amp; Field Chronicles</h3>
+                            <p class="text-xs text-white/65">Read hilarious NNN survival stories or share your own comedic battle report (stored in NeonDB <code>sc_nnn_stories</code>).</p>
+                        </div>
+                        <button type="button" id="toggleNnnStoryFormBtn" class="btn-gold text-xs py-2.5 px-4">
+                            😂 Share Funny NNN Story (+35 Aura XP)
+                        </button>
+                    </div>
+
+                    <!-- Add Funny Story Form -->
+                    <form id="nnnStoryForm" class="hidden mb-6 p-5 rounded-2xl bg-black/45 border border-yellow-400/40 space-y-3">
+                        <h4 class="text-sm font-bold text-yellow-300">Submit Your Comedic NNN Chronicle to NeonDB</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <input type="text" id="nnnStoryAuthor" class="sc-input text-sm" placeholder="Your Handle (e.g. LevitatingSpartan)" required>
+                            <input type="text" id="nnnStoryDayTag" class="sc-input text-sm" placeholder="Day Tag (e.g. Day 17 of NNN)" required>
+                            <select id="nnnStoryHumorTag" class="sc-select text-sm">
+                                <option value="Superpower Meme Lore">Superpower Meme Lore</option>
+                                <option value="Urge Survival Comedy">Urge Survival Comedy</option>
+                                <option value="Developer Ascension">Developer Ascension</option>
+                                <option value="Wholesome Fail">Wholesome Fail</option>
+                            </select>
+                        </div>
+                        <input type="text" id="nnnStoryTitle" class="sc-input text-sm" placeholder="Funny Story Headline..." required>
+                        <textarea id="nnnStoryBody" rows="3" class="sc-textarea text-sm" placeholder="Tell the story of your funniest NNN moment, cold shower panic, or mythical Day-21 superpower..." required></textarea>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" id="cancelNnnStoryBtn" class="btn-secondary text-xs">Cancel</button>
+                            <button type="submit" class="btn-gold text-xs">Publish Story to NeonDB (+35 XP)</button>
+                        </div>
+                    </form>
+
+                    <div id="nnnStoriesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+
+            <!-- =============================================================
+                 NNN PANE 5: COMPLETE HISTORY & CULTURAL EVOLUTION OF NNN
+                 ============================================================= -->
+            <div id="nnn-pane-history" class="nnn-pane hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                    <div class="lg:col-span-5 sc-panel overflow-hidden flex flex-col justify-between">
+                        <img src="assets/murals/nnn-temple-lore.jpg" alt="Ancient Philosopher Transmutation Mural" class="w-full h-64 object-cover">
+                        <div class="p-5 space-y-2">
+                            <span class="text-xs uppercase tracking-widest text-yellow-400 font-bold">From Ancient Brahmacharya to Internet Phenomena</span>
+                            <h3 class="text-xl font-extrabold text-white">The Cultural &amp; Historical Lineage of NNN</h3>
+                            <p class="text-xs text-white/75 leading-relaxed">
+                                While No Nut November emerged as an internet challenge in 2011, the practice of seasonal and 30-day celibacy for physical and mental mastery dates back over 3,000 years across Vedic, Stoic, and Olympic traditions.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-7 sc-panel p-5 sm:p-6 space-y-4">
+                        <span class="text-xs uppercase tracking-widest text-cyan-300 font-bold">Chronological Archive (3000 BCE – 2026)</span>
+                        <h3 class="text-xl font-extrabold text-white">Timeline of Retention &amp; No Nut November</h3>
+                        <div id="nnnHistoryTimelineContainer" class="space-y-3 max-h-[430px] overflow-y-auto pr-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =============================================================
+                 NNN PANE 6: MURALS, CLIP ART & LIVE API VISUAL GALLERY
+                 ============================================================= -->
+            <div id="nnn-pane-gallery" class="nnn-pane hidden space-y-6">
+                <div class="sc-panel p-5 sm:p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+                        <div>
+                            <span class="text-xs uppercase tracking-widest text-yellow-400 font-bold">Bespoke Murals, SVG Clip Art &amp; Pixabay API Stream</span>
+                            <h3 class="text-2xl font-extrabold text-white">NNN Visual Gallery, Posters &amp; Emblem Vault</h3>
+                            <p class="text-xs text-white/65">High-resolution custom murals, vector badge clip-art, and live motivational imagery fetched via the Pixabay API.</p>
+                        </div>
+                        <button type="button" id="fetchLiveGalleryBtn" class="btn-gold text-xs py-2.5 px-4">
+                            🖼️ Refresh Live API Gallery
+                        </button>
+                    </div>
+
+                    <div id="nnnVisualGalleryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+                </div>
+            </div>
+
+            <!-- =============================================================
+                 NNN PANE 7: LIVE API KEYS VAULT & CONFIGURATION STATUS
+                 ============================================================= -->
+            <div id="nnn-pane-apikeys" class="nnn-pane hidden space-y-6">
+                <div class="sc-panel-gold p-5 sm:p-6 space-y-4">
+                    <div>
+                        <span class="text-xs uppercase tracking-widest text-yellow-300 font-bold">Multi-API Key Management Hub</span>
+                        <h3 class="text-2xl font-extrabold text-white">Configure Live API Keys (Browser or Netlify Env Vars)</h3>
+                        <p class="text-xs sm:text-sm text-white/80 mt-1">
+                            You can configure these keys permanently in <strong>Netlify Environment Variables</strong> OR paste them below to test live API calls immediately from your browser. Every integration also includes a built-in zero-key fallback so the UI never breaks!
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="vaultYoutubeKey" class="block text-xs font-bold text-yellow-300 mb-1">1. YouTube Data API v3 Key (<code>YOUTUBE_API_KEY</code>)</label>
+                            <input type="password" id="vaultYoutubeKey" class="sc-input text-xs font-mono" placeholder="AIzaSy... (From Google Cloud Console)">
+                            <p class="text-[11px] text-white/60 mt-1">Used for live Top 50 NNN &amp; Retention video search.</p>
+                        </div>
+                        <div>
+                            <label for="vaultPixabayKey" class="block text-xs font-bold text-yellow-300 mb-1">2. Pixabay API Key (<code>PIXABAY_API_KEY</code>)</label>
+                            <input type="password" id="vaultPixabayKey" class="sc-input text-xs font-mono" placeholder="41293812-abcdef... (From pixabay.com/api/docs)">
+                            <p class="text-[11px] text-white/60 mt-1">Used for fetching live warrior &amp; discipline illustrations in the NNN Gallery.</p>
+                        </div>
+                        <div>
+                            <label for="vaultRedditClientId" class="block text-xs font-bold text-yellow-300 mb-1">3. Reddit OAuth2 Client ID (<code>REDDIT_CLIENT_ID</code>)</label>
+                            <input type="text" id="vaultRedditClientId" class="sc-input text-xs font-mono" placeholder="14-char Client ID from reddit.com/prefs/apps">
+                        </div>
+                        <div>
+                            <label for="vaultRedditSecret" class="block text-xs font-bold text-yellow-300 mb-1">4. Reddit OAuth2 Client Secret (<code>REDDIT_CLIENT_SECRET</code>)</label>
+                            <input type="password" id="vaultRedditSecret" class="sc-input text-xs font-mono" placeholder="27-char Secret from reddit.com/prefs/apps">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="vaultNcbiKey" class="block text-xs font-bold text-yellow-300 mb-1">5. NIH NCBI PubMed API Key (<code>NCBI_API_KEY</code> — Optional)</label>
+                            <input type="password" id="vaultNcbiKey" class="sc-input text-xs font-mono" placeholder="Optional NCBI E-Utilities Key (Raises rate limit to 10 req/s)">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button type="button" id="saveApiKeysVaultBtn" class="btn-gold text-xs sm:text-sm py-2.5 px-5">
+                            💾 Save API Keys &amp; Refresh All Live Feeds
+                        </button>
+                        <button type="button" id="clearApiKeysVaultBtn" class="btn-secondary text-xs sm:text-sm py-2.5 px-4">
+                            🔄 Reset to Keyless Public Mode
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </section>
 
         <!-- =================================================================
