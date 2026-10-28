@@ -1,3 +1,6 @@
+if (!window.__SEEDCONTROLLER_BOOTED__) {
+window.__SEEDCONTROLLER_BOOTED__ = true;
+
 /* ==========================================================================
    SeedController — Sovereign Retention, Bio-Transmutation & Neuro-Reboot App
    Full Client-Side Controller + NeonDB Serverless Sync + Live Public APIs
@@ -1737,7 +1740,7 @@ const NNN_HISTORY_TIMELINE = [
 ];
 
 // Default Built-in Murals & SVG Clip-Art Emblems for the NNN Visual Gallery
-const BUILTIN_NNN_GALLERY = [
+const BUILTIN_NNN_GALLERY = window.BUILTIN_NNN_GALLERY = [
     {
         id: "mural-1",
         title: "The Spartan Autumn Citadel (NNN War Room Hero Mural)",
@@ -2284,7 +2287,7 @@ function renderNnnHistoryTimeline() {
     });
 }
 
-async function renderNnnVisualGallery(fetchLive = false) {
+async function renderNnnVisualGallery(fetchLive = false, silent = false) {
     const grid = document.getElementById("nnnVisualGalleryGrid");
     const providerBadgeEl = document.getElementById("nnnGalleryActiveProviderText");
     if (!grid) return;
@@ -2461,7 +2464,7 @@ async function renderNnnVisualGallery(fetchLive = false) {
 
         if (liveHits.length > 0) {
             items = [...items, ...liveHits];
-            showToast(`Loaded ${liveHits.length} live artworks from ${activeProviderLabel}!`, "success");
+            if (!silent) showToast(`Loaded ${liveHits.length} live artworks from ${activeProviderLabel}!`, "success");
         }
     }
 
@@ -2474,7 +2477,7 @@ async function renderNnnVisualGallery(fetchLive = false) {
         card.innerHTML = `
             <div>
                 <div class="h-48 overflow-hidden relative bg-purple-950/40">
-                    <img src="${art.imageUrl}" alt="${art.title}" class="w-full h-full object-cover hover:scale-105 transition duration-500">
+                    <img src="${art.imageUrl}" alt="${art.title}" loading="lazy" onerror="this.onerror=null;if(window.BUILTIN_NNN_GALLERY&&window.BUILTIN_NNN_GALLERY[0]){this.src=window.BUILTIN_NNN_GALLERY[0].imageUrl;}" class="w-full h-full object-cover hover:scale-105 transition duration-500">
                     <span class="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-full bg-black/75 border border-yellow-400/40 text-[10px] font-bold text-yellow-300">${art.badge}</span>
                 </div>
                 <div class="p-4">
@@ -2495,7 +2498,7 @@ function initNnnHub() {
     renderNnnStories();
     renderNnnHistoryTimeline();
     renderNnnYoutubeGrid();
-    renderNnnVisualGallery(true);
+    renderNnnVisualGallery(true, true);
     scrapeLiveNnnSubreddit();
 
     // Load saved API keys into Vault inputs
@@ -2587,7 +2590,7 @@ function initNnnHub() {
         appState.profile.aura_points = Number(appState.profile.aura_points || 0) + 35;
         saveLocalState();
         renderNnnStories();
-        renderDashboard();
+        renderAll();
         storyForm.reset();
         storyForm.classList.add("hidden");
         showToast("Funny NNN Story published & +35 Aura XP awarded!", "success");
@@ -2599,10 +2602,10 @@ function initNnnHub() {
 
     // Live Visual Gallery Refresh
     document.getElementById("fetchLiveGalleryBtn")?.addEventListener("click", () => {
-        renderNnnVisualGallery(true);
+        renderNnnVisualGallery(true, true);
     });
     document.getElementById("nnnGalleryProviderSelect")?.addEventListener("change", () => {
-        renderNnnVisualGallery(true);
+        renderNnnVisualGallery(true, true);
     });
 
     // API Keys Vault Save & Clear
@@ -2621,7 +2624,7 @@ function initNnnHub() {
         showToast("Saved API keys! Refreshing YouTube, Community Scraper, and Visual Gallery...", "success");
         queryLiveYoutubeVideos();
         scrapeLiveNnnSubreddit();
-        renderNnnVisualGallery(true);
+        renderNnnVisualGallery(true, true);
     });
 
     document.getElementById("clearApiKeysVaultBtn")?.addEventListener("click", () => {
@@ -2632,10 +2635,11 @@ function initNnnHub() {
         if (document.getElementById("vaultNasaKey")) document.getElementById("vaultNasaKey").value = "DEMO_KEY";
         activeYoutubeVideos = [...TOP_50_NNN_VIDEOS];
         renderNnnYoutubeGrid();
-        renderNnnVisualGallery(true);
+        renderNnnVisualGallery(true, true);
         scrapeLiveNnnSubreddit();
         showToast("Switched to 100% Keyless Live Public APIs (Art Institute + Reddit JSON + PullPush.io)!", "info");
     });
 }
 
 document.addEventListener("DOMContentLoaded", initNnnHub);
+}
