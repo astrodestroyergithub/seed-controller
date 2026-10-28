@@ -1,0 +1,21 @@
+{
+  "name": "SeedController — Retention & Discipline Suite",
+  "short_name": "SeedController",
+  "description": "Privacy-first semen retention tracker, 3D aura orb, 90-day reboot plan, dual-streak tracker, fasting timer, journal, and NeonDB sync.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0f0524",
+  "theme_color": "#1a0e36",
+  "icons": [
+    {
+      "src": "/favicon/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
