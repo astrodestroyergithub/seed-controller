@@ -1,9 +1,10 @@
 const { Pool } = require("pg");
 
 /**
- * SeedController + NNN (No Nut November) — Unified NeonDB PostgreSQL Serverless Handler
- * Matches your existing pg.Pool pattern using process.env.DATABASE_URL
- * Automatically creates all 9 tables, the immutable yearly NNN status view, and multi-profile seed records.
+ * SeedController Sovereign + NNN War Room + Self-Touching Calendar
+ * Unified NeonDB PostgreSQL Serverless Handler (netlify/functions/api.js)
+ * Uses process.env.DATABASE_URL with pg.Pool.
+ * Self-healing schema initialization + multi-profile seed engine + strict elapsed-date immutability guards.
  */
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -144,11 +145,45 @@ async function ensureSchema() {
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             UNIQUE(profile_key, record_date)
         );
+    `);
 
+    // Self-healing migration in case an older sc_nnn_daily_tracker table had a constraint without profile_key
+    await pool.query(`
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'sc_nnn_daily_tracker_challenge_year_day_number_key'
+            ) THEN
+                ALTER TABLE sc_nnn_daily_tracker DROP CONSTRAINT sc_nnn_daily_tracker_challenge_year_day_number_key;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'sc_nnn_daily_tracker_day_number_key'
+            ) THEN
+                ALTER TABLE sc_nnn_daily_tracker DROP CONSTRAINT sc_nnn_daily_tracker_day_number_key;
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid = 'sc_nnn_daily_tracker'::regclass
+                  AND contype = 'u'
+                  AND pg_get_constraintdef(oid) LIKE '%profile_key, challenge_year, day_number%'
+            ) THEN
+                BEGIN
+                    ALTER TABLE sc_nnn_daily_tracker
+                    ADD CONSTRAINT sc_nnn_daily_tracker_profile_year_day_uq UNIQUE (profile_key, challenge_year, day_number);
+                EXCEPTION WHEN duplicate_table OR others THEN
+                    NULL;
+                END;
+            END IF;
+        END $$;
+    `);
+
+    // Create or replace the read-only Year-Wise NNN Challenge Status View (2023–2030)
+    await pool.query(`
         CREATE OR REPLACE VIEW sc_nnn_yearly_status_view AS
         WITH years AS (
-            -- YEAR RANGE CHANGES
-            SELECT generate_series(2020, EXTRACT(YEAR FROM CURRENT_DATE)::int + 5) AS challenge_year
+            SELECT generate_series(2023, 2030) AS challenge_year
         ),
         profile_years AS (
             SELECT p.profile_key, p.display_name, y.challenge_year
@@ -185,7 +220,7 @@ async function ensureSchema() {
         ORDER BY py.profile_key ASC, py.challenge_year DESC;
     `);
 
-    // Seed 4 distinct profiles into sc_profiles so profile dropdowns always show multiple rich profiles
+    // 1. Seed 4 distinct profiles in sc_profiles
     await pool.query(`
         INSERT INTO sc_profiles (
             profile_key, display_name, pmo_start_time, p_start_time, mo_start_time,
@@ -257,96 +292,160 @@ async function ensureSchema() {
         ON CONFLICT (profile_key) DO NOTHING;
     `);
 
-    // Seed multi-year NNN Daily Survival Matrix records per profile if empty
-    const nnnCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_nnn_daily_tracker`);
-    if (nnnCount.rows[0].cnt < 20) {
+    // 2. Seed profile-specific daily habits if empty
+    const habitsCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_daily_habits`);
+    if (habitsCount.rows[0].cnt === 0) {
         await pool.query(`
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'default_monk', 2024, d,
-                   CASE WHEN d = 11 THEN 'fallen' WHEN d IN (6, 9) THEN 'danger_zone' ELSE 'survived' END,
-                   CASE WHEN d = 11 THEN 9 WHEN d IN (6, 9) THEN 7 ELSE 2 END,
-                   CASE WHEN d = 11 THEN 'Late night scrolling slip in Nov 2024' ELSE 'Held the line' END
-            FROM generate_series(1, 11) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+            INSERT INTO sc_daily_habits (profile_key, habit_code, habit_label, aura_reward, completed_date)
+            VALUES
+                ('default_monk', 'cold_exposure', '❄️ Cold Shower / Vagal Hydro-Reset (3 mins)', 30, CURRENT_DATE),
+                ('default_monk', 'zero_edging', '🛡️ Zero Peek & Zero Dopamine Binge Scrolling', 35, CURRENT_DATE),
 
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'default_monk', 2025, d,
-                   CASE WHEN d IN (7, 14, 21) THEN 'danger_zone' ELSE 'survived' END,
-                   CASE WHEN d IN (7, 14, 21) THEN 6 ELSE 2 END,
-                   'Completed 2025 NNN cleanly'
-            FROM generate_series(1, 30) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+                ('spartan_arjun', 'cold_exposure', '❄️ Cold Shower / Vagal Hydro-Reset (3 mins)', 30, CURRENT_DATE),
+                ('spartan_arjun', 'pranayama', '🧘 10-Min Pranayama / Ojas Upward Draw', 25, CURRENT_DATE),
+                ('spartan_arjun', 'heavy_training', '🏋️ Compound Strength / High-Intensity Output', 35, CURRENT_DATE),
+                ('spartan_arjun', 'deep_creation', '💻 90-Min Undistracted Deep Work / Study Block', 40, CURRENT_DATE),
+                ('spartan_arjun', 'zero_edging', '🛡️ Zero Peek & Zero Dopamine Binge Scrolling', 35, CURRENT_DATE),
 
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'default_monk', 2026, d,
-                   CASE WHEN d IN (7, 12) THEN 'danger_zone' ELSE 'survived' END,
-                   CASE WHEN d IN (7, 12) THEN 7 ELSE 2 END,
-                   '2026 NNN War Room log'
-            FROM generate_series(1, 14) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+                ('vedic_sage_108', 'cold_exposure', '❄️ Cold Shower / Vagal Hydro-Reset (3 mins)', 30, CURRENT_DATE),
+                ('vedic_sage_108', 'pranayama', '🧘 10-Min Pranayama / Ojas Upward Draw', 25, CURRENT_DATE),
+                ('vedic_sage_108', 'heavy_training', '🏋️ Compound Strength / High-Intensity Output', 35, CURRENT_DATE),
+                ('vedic_sage_108', 'deep_creation', '💻 90-Min Undistracted Deep Work / Study Block', 40, CURRENT_DATE),
+                ('vedic_sage_108', 'zero_edging', '🛡️ Zero Peek & Zero Dopamine Binge Scrolling', 35, CURRENT_DATE),
+                ('vedic_sage_108', 'night_curfew', '🌙 Digital Sunset (Phone Away 45m Before Sleep)', 25, CURRENT_DATE),
 
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'spartan_arjun', 2023, d,
-                   CASE WHEN d = 19 THEN 'fallen' ELSE 'survived' END,
-                   CASE WHEN d = 19 THEN 9 ELSE 3 END,
-                   '2023 Campaign'
-            FROM generate_series(1, 19) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
-
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'spartan_arjun', 2024, d,
-                   CASE WHEN d IN (8, 17, 25) THEN 'danger_zone' ELSE 'survived' END,
-                   3,
-                   '2024 Spartan Victory'
-            FROM generate_series(1, 30) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
-
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'spartan_arjun', 2025, d, 'survived', 1, '2025 Flawless Spartan Run'
-            FROM generate_series(1, 30) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
-
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'spartan_arjun', 2026, d,
-                   CASE WHEN d IN (5, 15, 22) THEN 'danger_zone' ELSE 'survived' END,
-                   2,
-                   '2026 Spartan Regiment'
-            FROM generate_series(1, 22) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
-
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'vedic_sage_108', yr, d, 'survived', 1, 'Brahmacharya Mastery'
-            FROM generate_series(2023, 2026) AS yr
-            CROSS JOIN generate_series(1, 30) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
-
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'neophyte_seeker', 2024, d,
-                   CASE WHEN d = 4 THEN 'fallen' ELSE 'danger_zone' END,
-                   8,
-                   '2024 Early Slip'
-            FROM generate_series(1, 4) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
-
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'neophyte_seeker', 2025, d,
-                   CASE WHEN d = 9 THEN 'fallen' WHEN d IN (3, 7) THEN 'danger_zone' ELSE 'survived' END,
-                   7,
-                   '2025 Week-2 Slip'
-            FROM generate_series(1, 9) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
-
-            INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
-            SELECT 'neophyte_seeker', 2026, d,
-                   CASE WHEN d = 6 THEN 'fallen' WHEN d IN (3, 5) THEN 'danger_zone' ELSE 'survived' END,
-                   8,
-                   '2026 Attempt'
-            FROM generate_series(1, 8) AS d
-            ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+                ('neophyte_seeker', 'cold_exposure', '❄️ Cold Shower / Vagal Hydro-Reset (3 mins)', 30, CURRENT_DATE)
+            ON CONFLICT (profile_key, habit_code, completed_date) DO NOTHING;
         `);
     }
 
-    // Seed initial Self-Touching & Sexual Activity Records if empty
+    // 3. Seed profile-specific relapse logs if empty
+    const relCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_relapse_logs`);
+    if (relCount.rows[0].cnt === 0) {
+        await pool.query(`
+            INSERT INTO sc_relapse_logs (profile_key, streak_type, streak_days_achieved, trigger_category, emotional_state, lesson_learned, logged_at)
+            VALUES
+                ('default_monk', 'MO_ONLY', 19.4, 'Late Night Scrolling', 'Exhausted / Low Dopamine', 'Kept P-Free streak intact; installed bedroom phone curfew after 10:30 PM.', NOW() - INTERVAL '14 days'),
+                ('default_monk', 'PMO', 11.2, 'Stress / Work Burnout', 'Restless / Anxious', 'Replaced afternoon stress cues with 4-7-8 breathwork and 25 pushups.', NOW() - INTERVAL '34 days'),
+                ('spartan_arjun', 'MO_ONLY', 31.5, 'Travel Fatigue', 'Restless / Anxious', 'Maintained 18:6 Warrior Monk fasting and cold showers during hotel stays.', NOW() - INTERVAL '42 days'),
+                ('vedic_sage_108', 'PMO', 64.0, 'Complacency at Day 64', 'Overconfident (Just a peek)', 'Adopted unbroken Siddhasana pranayama and 20:4 Deep Autophagy fasting.', NOW() - INTERVAL '95 days'),
+                ('neophyte_seeker', 'PMO', 4.5, 'Social Media Algorithm', 'Boredom & Isolation', 'Enabled CleanBrowsing DNS 185.228.168.10 and started logging every day in the Self-Touching Calendar.', NOW() - INTERVAL '3 days');
+        `);
+    }
+
+    // 4. Seed profile-specific journal entries if empty
+    const jrnCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_journal_entries`);
+    if (jrnCount.rows[0].cnt === 0) {
+        await pool.query(`
+            INSERT INTO sc_journal_entries (profile_key, title, mood, energy_level, urge_intensity, content, created_at)
+            VALUES
+                ('default_monk', 'Day 14 (default_monk): Noticeable Surge in Morning Drive & Focus', '⚡ High Drive & Focused', 9, 2, 'Two full weeks locked in on default_monk profile. Completed a 16-hour intermittent fast and hit a personal best on compound lifts.', NOW() - INTERVAL '6 hours'),
+                ('spartan_arjun', 'Day 42 (Spartan Arjun): 18:6 Autophagy Fast + Zero Urge Volatility', '🔥 Unstoppable Spartan', 10, 1, 'Currently 14.5 hours into my 18:6 Warrior Monk fast. Voice resonance, posture, and coding output are at all-time highs.', NOW() - INTERVAL '3 hours'),
+                ('vedic_sage_108', 'Day 95 (Vedic Sage 108): Full 90-Day Reboot Completed & Ojas Stabilized', '🧘 Sovereign Equanimity', 10, 0, '19+ hours into today''s 20:4 Deep Autophagy fast. Completed 3 consecutive victorious NNN campaigns (2023, 2024, 2025) and locked in all 30 days for 2026.', NOW() - INTERVAL '2 hours'),
+                ('neophyte_seeker', 'Day 3 (Reboot Challenger): Building Honest Accountability', '🛡️ Determined', 7, 5, 'Failed NNN in 2024 and 2025 early, but logging every trigger honestly now. Preparing for a 24h Solar Reset fast.', NOW() - INTERVAL '8 hours');
+        `);
+    }
+
+    // 5. Seed multi-year NNN Daily Survival Matrix per profile (idempotent via ON CONFLICT DO NOTHING)
+    await pool.query(`
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'default_monk', 2023, d, 'survived', 2, 'Completed 2023 NNN cleanly'
+        FROM generate_series(1, 30) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'default_monk', 2024, d,
+               CASE WHEN d = 11 THEN 'fallen' WHEN d IN (6, 9) THEN 'danger_zone' ELSE 'survived' END,
+               CASE WHEN d = 11 THEN 9 WHEN d IN (6, 9) THEN 7 ELSE 2 END,
+               CASE WHEN d = 11 THEN 'Late night scrolling slip in Nov 2024' ELSE 'Held the line' END
+        FROM generate_series(1, 11) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'default_monk', 2025, d,
+               CASE WHEN d IN (7, 14, 21) THEN 'danger_zone' ELSE 'survived' END,
+               CASE WHEN d IN (7, 14, 21) THEN 6 ELSE 2 END,
+               'Completed 2025 NNN cleanly'
+        FROM generate_series(1, 30) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'default_monk', 2026, d,
+               CASE WHEN d IN (7, 12) THEN 'danger_zone' ELSE 'survived' END,
+               CASE WHEN d IN (7, 12) THEN 7 ELSE 2 END,
+               '2026 NNN War Room log'
+        FROM generate_series(1, 14) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'spartan_arjun', 2023, d,
+               CASE WHEN d = 19 THEN 'fallen' ELSE 'survived' END,
+               CASE WHEN d = 19 THEN 9 ELSE 3 END,
+               '2023 Campaign'
+        FROM generate_series(1, 19) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'spartan_arjun', 2024, d,
+               CASE WHEN d IN (8, 17, 25) THEN 'danger_zone' ELSE 'survived' END,
+               3,
+               '2024 Spartan Victory'
+        FROM generate_series(1, 30) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'spartan_arjun', 2025, d, 'survived', 1, '2025 Flawless Spartan Run'
+        FROM generate_series(1, 30) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'spartan_arjun', 2026, d,
+               CASE WHEN d IN (5, 15, 22) THEN 'danger_zone' ELSE 'survived' END,
+               2,
+               '2026 Spartan Regiment'
+        FROM generate_series(1, 22) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'vedic_sage_108', yr, d, 'survived', 1, 'Brahmacharya Mastery'
+        FROM generate_series(2023, 2026) AS yr
+        CROSS JOIN generate_series(1, 30) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'neophyte_seeker', 2023, d,
+               CASE WHEN d = 3 THEN 'fallen' ELSE 'danger_zone' END,
+               8,
+               '2023 Early Slip'
+        FROM generate_series(1, 3) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'neophyte_seeker', 2024, d,
+               CASE WHEN d = 4 THEN 'fallen' ELSE 'danger_zone' END,
+               8,
+               '2024 Early Slip'
+        FROM generate_series(1, 4) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'neophyte_seeker', 2025, d,
+               CASE WHEN d = 9 THEN 'fallen' WHEN d IN (3, 7) THEN 'danger_zone' ELSE 'survived' END,
+               7,
+               '2025 Week-2 Slip'
+        FROM generate_series(1, 9) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+
+        INSERT INTO sc_nnn_daily_tracker (profile_key, challenge_year, day_number, status, urge_level, trigger_note)
+        SELECT 'neophyte_seeker', 2026, d,
+               CASE WHEN d = 6 THEN 'fallen' WHEN d IN (3, 5) THEN 'danger_zone' ELSE 'survived' END,
+               8,
+               '2026 Attempt'
+        FROM generate_series(1, 8) AS d
+        ON CONFLICT (profile_key, challenge_year, day_number) DO NOTHING;
+    `);
+
+    // 6. Seed Self-Touching & Sexual Activity Records if empty
     const stCount = await pool.query(`SELECT COUNT(*)::int AS cnt FROM sc_self_touching_records`);
     if (stCount.rows[0].cnt === 0) {
         await pool.query(`
@@ -356,24 +455,28 @@ async function ensureSchema() {
                 ('default_monk', '2026-10-08', 'Only Gooning', 'Late night trigger browsing (Immutable)'),
                 ('default_monk', '2026-10-14', 'Masturbation Without Ejaculation', 'Edging incident before reset (Immutable)'),
                 ('default_monk', '2026-10-15', 'No Sexual Activity', 'Clean retention streak initiated (Immutable)'),
-                ('default_monk', '2026-10-20', 'No Sexual Activity', 'Morning cold plunge + gym (Immutable)'),
+                ('default_monk', '2026-10-18', 'No Sexual Activity', 'Cold plunge + compound lifts (Immutable)'),
+                ('default_monk', '2026-10-22', 'No Sexual Activity', 'Day-7 testosterone peak channeled (Immutable)'),
                 ('default_monk', '2026-10-25', 'No Sexual Activity', 'Zero urges all day (Immutable)'),
+                ('default_monk', '2026-10-28', 'No Sexual Activity', 'Clean discipline locked in (Immutable)'),
                 ('default_monk', '2026-10-29', 'No Sexual Activity', 'Current day commitment — editable'),
-                ('default_monk', '2026-10-30', 'No Sexual Activity', 'Planned clean pre-NNN day'),
-                ('default_monk', '2026-11-01', 'No Sexual Activity', 'NNN Day 1 Lock-In'),
+                ('default_monk', '2026-10-30', 'No Sexual Activity', 'Planned clean pre-NNN day — editable'),
+                ('default_monk', '2026-11-01', 'No Sexual Activity', 'NNN Day 1 Sovereign Lock-In — editable'),
 
                 ('spartan_arjun', '2026-10-04', 'Penetrative Sex', 'With partner (Immutable)'),
                 ('spartan_arjun', '2026-10-11', 'Light Couple Play', 'Non-ejaculatory bonding (Immutable)'),
-                ('spartan_arjun', '2026-10-18', 'No Sexual Activity', 'Full monk protocol (Immutable)'),
-                ('spartan_arjun', '2026-10-24', 'No Sexual Activity', '18:6 intermittent fast + heavy squats (Immutable)'),
-                ('spartan_arjun', '2026-10-29', 'No Sexual Activity', 'Active Spartan discipline'),
-                ('spartan_arjun', '2026-11-01', 'No Sexual Activity', 'NNN Day 1 Spartan Oath'),
+                ('spartan_arjun', '2026-10-16', 'Oral Sex', 'Anniversary evening (Immutable)'),
+                ('spartan_arjun', '2026-10-20', 'No Sexual Activity', '18:6 Warrior Monk fast + gym (Immutable)'),
+                ('spartan_arjun', '2026-10-24', 'No Sexual Activity', 'Full Spartan protocol (Immutable)'),
+                ('spartan_arjun', '2026-10-29', 'No Sexual Activity', 'Active 18:6 fast + clean focus — editable'),
+                ('spartan_arjun', '2026-11-01', 'No Sexual Activity', 'NNN Day 1 Spartan Oath — editable'),
 
                 ('vedic_sage_108', '2026-10-01', 'No Sexual Activity', 'Brahmacharya sadhana (Immutable)'),
-                ('vedic_sage_108', '2026-10-10', 'No Sexual Activity', 'Pranayama & Ojas transmutation (Immutable)'),
-                ('vedic_sage_108', '2026-10-20', 'No Sexual Activity', '20:4 autophagy fast (Immutable)'),
-                ('vedic_sage_108', '2026-10-29', 'No Sexual Activity', 'Unbroken celibacy'),
-                ('vedic_sage_108', '2026-11-01', 'No Sexual Activity', 'NNN Sovereign Mastery'),
+                ('vedic_sage_108', '2026-10-07', 'No Sexual Activity', 'Ojas transmutation + pranayama (Immutable)'),
+                ('vedic_sage_108', '2026-10-14', 'No Sexual Activity', '20:4 Deep Autophagy fast (Immutable)'),
+                ('vedic_sage_108', '2026-10-21', 'No Sexual Activity', '90+ Day Solar Sovereign (Immutable)'),
+                ('vedic_sage_108', '2026-10-29', 'No Sexual Activity', 'Unbroken celibacy — editable'),
+                ('vedic_sage_108', '2026-11-01', 'No Sexual Activity', 'NNN Sovereign Mastery — editable'),
 
                 ('neophyte_seeker', '2026-10-03', 'Only Gooning', 'Weekend relapse (Immutable)'),
                 ('neophyte_seeker', '2026-10-09', 'Masturbation With Ejaculation', 'Late night slip (Immutable)'),
@@ -382,7 +485,7 @@ async function ensureSchema() {
                 ('neophyte_seeker', '2026-10-22', 'Drink Own Cum', 'Logged experimental slip (Immutable)'),
                 ('neophyte_seeker', '2026-10-25', 'Masturbation Without Ejaculation', 'Stopped before point of no return (Immutable)'),
                 ('neophyte_seeker', '2026-10-29', 'No Sexual Activity', 'Starting fresh today — editable'),
-                ('neophyte_seeker', '2026-10-31', 'Light Couple Play', 'Planned date night (editable future status)')
+                ('neophyte_seeker', '2026-10-31', 'Light Couple Play', 'Planned date night — editable future status')
             ON CONFLICT (profile_key, record_date) DO NOTHING;
         `);
     }
@@ -431,7 +534,7 @@ async function ensureSchema() {
             INSERT INTO sc_community_checkins (handle, rank_badge, streak_days, pledge_text, sparks)
             VALUES
             ('SpartanCoder_99', 'Solar Sovereign (Day 60+)', 64, 'Day 64 locked in. Replaced late-night doomscrolling with 5:30 AM cold plunges and 2 hours of deep system architecture work.', 31),
-            ('VedicMonk_IN', 'Transmuter (Day 30+)', 38, 'Completed a 18-hour intermittent fast alongside pranayama today. Urges around day 35 were strong, but the Emergency Urge Shield kept me grounded.', 24),
+            ('VedicMonk_IN', 'Transmuter (Day 30+)', 38, 'Completed an 18-hour intermittent fast alongside pranayama today. Urges around day 35 were strong, but the Emergency Urge Shield kept me grounded.', 24),
             ('AtlasReborn', 'Guardian (Day 14+)', 16, 'Two full weeks clean on both P and MO tracks. Sleep quality and eye contact in meetings have noticeably leveled up.', 19)
         `);
     }
@@ -443,7 +546,8 @@ async function ensureSchema() {
             VALUES
             ('LevitationMonk_99', 'Day 12 of NNN', 'Accidentally Teleported to the Gym Squat Rack at 5:15 AM', 'By Day 12 of No Nut November, my alarm did not wake me up—I woke up the alarm. I went to make black coffee, blinked once, and somehow I was already warming up with 225 lbs on the barbell while reciting Marcus Aurelius in Latin.', 'Superpower Meme Lore', 128),
             ('ColdShowerGeneral', 'Day 19 of NNN', 'The Wi-Fi Router Blinked and I Thought It Was Morse Code From My Future Self', 'Week 3 urges hit at 11:30 PM while I was finishing a coding sprint. Instead of opening a new tab, I sprinted to the bathroom, turned the shower knob to Arctic Glacier mode, and did 40 pushups.', 'Urge Survival Comedy', 96),
-            ('BrahmacharyaCoder', 'Day 26 of NNN', 'Dogs Bark in Respect & My CSS Grid Centered Itself on the First Try', 'On Day 26 I wrote a 400-line PostgreSQL migration and a responsive flexbox layout without opening StackOverflow once.', 'Developer Ascension', 164)
+            ('BrahmacharyaCoder', 'Day 26 of NNN', 'Dogs Bark in Respect & My CSS Grid Centered Itself on the First Try', 'On Day 26 I wrote a 400-line PostgreSQL migration and a responsive flexbox layout without opening StackOverflow once.', 'Developer Ascension', 164),
+            ('StoicSpartan_07', 'Day 7 of NNN', 'The Great Peanut Butter Misunderstanding of November 3rd', 'My younger cousin genuinely thought No Nut November meant banning almonds, cashews, and peanut butter sandwiches for 30 days. He proudly threw away three jars of crunchy Skippy to support the brotherhood.', 'Wholesome Fail', 215)
         `);
     }
 

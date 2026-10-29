@@ -6,7 +6,7 @@ window.__SEEDCONTROLLER_BOOTED__ = true;
    Full Client-Side Controller + NeonDB Serverless Sync + Live Public APIs
    ========================================================================== */
 
-const STORAGE_KEY = "seedcontroller_v1_state";
+const STORAGE_KEY = "seedcontroller_v3_fresh_state";
 
 // 8 Rank Progression Tiers (ASCEND & NoBeep 90-Day Reboot System)
 const RANK_TIERS = [
@@ -280,11 +280,18 @@ async function syncWithNeonDB(showNotification = false) {
             if (Array.isArray(data.todayHabits)) {
                 appState.completedHabitsToday = data.todayHabits.map((h) => h.habit_code);
             }
-            if (Array.isArray(data.relapseHistory) && data.relapseHistory.length > 0) {
+            if (Array.isArray(data.relapseHistory)) {
                 appState.relapseHistory = data.relapseHistory;
             }
-            if (Array.isArray(data.journalEntries) && data.journalEntries.length > 0) {
+            if (Array.isArray(data.journalEntries)) {
                 appState.journalEntries = data.journalEntries;
+            }
+            ensureMultiProfileStructures();
+            if (appState.profilesByKey[profileKey]) {
+                appState.profilesByKey[profileKey].profile = { ...appState.profile };
+                appState.profilesByKey[profileKey].completedHabitsToday = [...appState.completedHabitsToday];
+                appState.profilesByKey[profileKey].relapseHistory = [...appState.relapseHistory];
+                appState.profilesByKey[profileKey].journalEntries = [...appState.journalEntries];
             }
             if (Array.isArray(data.blogs) && data.blogs.length > 0) {
                 appState.blogs = data.blogs;
@@ -2040,7 +2047,7 @@ function buildSeededMultiProfileData() {
                 blocker_strictness: "strict",
                 custom_blocked_domains: "adultsite.example,shortsdoom.example,latebait.example"
             },
-            completedHabitsToday: ["cold_exposure", "pranayama_breath", "compound_lifts", "deep_work_90", "zero_edging"],
+            completedHabitsToday: ["cold_exposure", "pranayama", "heavy_training", "deep_creation", "zero_edging"],
             relapseHistory: [
                 {
                     id: 501,
@@ -2080,7 +2087,7 @@ function buildSeededMultiProfileData() {
                 blocker_strictness: "maximum",
                 custom_blocked_domains: "adultsite.example,triggerhub.example,dopaminetrap.example,reelsbait.example"
             },
-            completedHabitsToday: ["cold_exposure", "pranayama_breath", "compound_lifts", "deep_work_90", "digital_sunset", "zero_edging"],
+            completedHabitsToday: ["cold_exposure", "pranayama", "heavy_training", "deep_creation", "zero_edging", "night_curfew"],
             relapseHistory: [
                 {
                     id: 502,
@@ -2148,10 +2155,10 @@ function buildSeededMultiProfileData() {
 
     // Multi-year NNN Daily Survival Matrix per profile
     const nnnDailyByProfile = {
-        default_monk: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} },
-        spartan_arjun: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} },
-        vedic_sage_108: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} },
-        neophyte_seeker: { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} }
+        default_monk: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} },
+        spartan_arjun: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} },
+        vedic_sage_108: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} },
+        neophyte_seeker: { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} }
     };
 
     // default_monk: 2023 Success (30/30), 2024 Failed (Day 11), 2025 Success (30/30), 2026 (Days 1-14 clean/danger)
@@ -2265,7 +2272,7 @@ function ensureMultiProfileStructures() {
             if (!appState.nnnDailyByProfile[pk]) {
                 appState.nnnDailyByProfile[pk] = seeded.nnnDailyByProfile[pk];
             } else {
-                [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031].forEach((yr) => {
+                [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030].forEach((yr) => {
                     if (!appState.nnnDailyByProfile[pk][yr]) {
                         appState.nnnDailyByProfile[pk][yr] = seeded.nnnDailyByProfile[pk][yr] || {};
                     }
@@ -2294,7 +2301,7 @@ function ensureMultiProfileStructures() {
         };
     }
     if (!appState.nnnDailyByProfile[currentKey]) {
-        appState.nnnDailyByProfile[currentKey] = { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} };
+        appState.nnnDailyByProfile[currentKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
     }
     if (!appState.selfTouchingByProfile[currentKey]) {
         appState.selfTouchingByProfile[currentKey] = {};
@@ -2351,7 +2358,7 @@ async function switchActiveProfile(newProfileKey, notify = true) {
         appState.profilesByKey[cleanKey] = createBlankProfileBundle(cleanKey, cleanKey);
     }
     if (!appState.nnnDailyByProfile[cleanKey]) {
-        appState.nnnDailyByProfile[cleanKey] = { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} };
+        appState.nnnDailyByProfile[cleanKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
     }
     if (!appState.selfTouchingByProfile[cleanKey]) {
         appState.selfTouchingByProfile[cleanKey] = {};
@@ -2392,7 +2399,7 @@ function ensureNnnStateDefaults() {
     const pk = appState.profile?.profile_key || "default_monk";
     const yr = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
     if (!appState.nnnDailyByProfile[pk]) {
-        appState.nnnDailyByProfile[pk] = { 2020: {}, 2021: {}, 2022: {}, 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {}, 2031: {} };
+        appState.nnnDailyByProfile[pk] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
     }
     if (!appState.nnnDailyByProfile[pk][yr]) {
         appState.nnnDailyByProfile[pk][yr] = {};
@@ -2631,8 +2638,7 @@ function renderNnnYearlyStatus() {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    // YEAR RANGE CHANGES
-    const yearsToList = [2031, 2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022, 2021, 2020];
+    const yearsToList = [2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023];
     yearsToList.forEach((yr) => {
         const ev = computeNnnYearStatus(pk, yr);
         const tr = document.createElement("tr");
@@ -3565,7 +3571,7 @@ function initNnnHub() {
         let y = Number(ySel.value);
         if (m < 0) {
             m = 11;
-            y = Math.max(2024, y - 1);
+            y = Math.max(2023, y - 1);
         }
         mSel.value = String(m);
         ySel.value = String(y);
@@ -3579,7 +3585,7 @@ function initNnnHub() {
         let y = Number(ySel.value);
         if (m > 11) {
             m = 0;
-            y = Math.min(2028, y + 1);
+            y = Math.min(2030, y + 1);
         }
         mSel.value = String(m);
         ySel.value = String(y);
@@ -3601,7 +3607,7 @@ function initNnnHub() {
             const mSel = document.getElementById("stMonthSelect");
             const ySel = document.getElementById("stYearSelect");
             if (mSel) mSel.value = String(mo - 1);
-            if (ySel && yr >= 2024 && yr <= 2028) ySel.value = String(yr);
+            if (ySel && yr >= 2023 && yr <= 2030) ySel.value = String(yr);
         }
         renderSelfTouchingCalendar();
     });
