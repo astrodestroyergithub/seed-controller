@@ -570,6 +570,9 @@ html, body {
                         <option value="vedic_sage_108" class="bg-[#160832] text-white">vedic_sage_108 (Brahmacharya Sage)</option>
                         <option value="neophyte_seeker" class="bg-[#160832] text-white">neophyte_seeker (Reboot Challenger)</option>
                     </select>
+                    <button type="button" id="openCreateProfileBtnHeader" class="px-2 py-0.5 rounded-lg bg-yellow-400/20 hover:bg-yellow-400/35 border border-yellow-400/50 text-[11px] font-extrabold text-yellow-300 transition shrink-0" title="Create a new custom profile in sc_profiles">
+                        + New
+                    </button>
                 </div>
 
                 <!-- NeonDB Connection Indicator -->
@@ -661,6 +664,9 @@ html, body {
                         <option value="vedic_sage_108">vedic_sage_108 — Brahmacharya Sage 108</option>
                         <option value="neophyte_seeker">neophyte_seeker — Reboot Challenger</option>
                     </select>
+                    <button type="button" id="openCreateProfileBtnDash" class="btn-secondary text-xs py-1.5 px-3 shrink-0">
+                        ➕ Create Custom Profile
+                    </button>
                 </div>
             </div>
 
@@ -2276,6 +2282,59 @@ html, body {
         </div>
     </div>
 
+    <!-- ===== MODAL 6: CREATE CUSTOM PROFILE IN SC_PROFILES ===== -->
+    <div id="createCustomProfileModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="sc-panel bg-[#17092e] max-w-lg w-full p-6 space-y-4 border border-yellow-400/50">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-widest text-yellow-400">New Practitioner Record (sc_profiles)</span>
+                    <h3 class="text-xl font-extrabold text-white mt-0.5">Create Custom Profile</h3>
+                </div>
+                <button type="button" id="closeCreateProfileModalBtn" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-bold text-white">✕</button>
+            </div>
+
+            <form id="createCustomProfileForm" class="space-y-3.5">
+                <div>
+                    <label for="newProfileKeyInput" class="block text-xs text-white/80 font-bold mb-1">Unique Profile Key (<code>profile_key</code> in <code>sc_profiles</code>)</label>
+                    <input type="text" id="newProfileKeyInput" class="sc-input text-sm font-mono" placeholder="e.g. rahul_sovereign_01" required>
+                    <p class="text-[11px] text-white/55 mt-1">Use letters, numbers, and underscores (spaces are automatically converted to underscores).</p>
+                </div>
+
+                <div>
+                    <label for="newProfileDisplayNameInput" class="block text-xs text-white/80 font-bold mb-1">Practitioner Display Name (<code>display_name</code>)</label>
+                    <input type="text" id="newProfileDisplayNameInput" class="sc-input text-sm" placeholder="e.g. Rahul Sovereign" required>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label for="newProfileTargetDaysSelect" class="block text-xs text-white/80 font-bold mb-1">Target Reboot Goal</label>
+                        <select id="newProfileTargetDaysSelect" class="sc-select text-xs py-2">
+                            <option value="30">30 Days (NNN / Monthly Reset)</option>
+                            <option value="60">60 Days (Solar Sovereign)</option>
+                            <option value="90" selected>90 Days (Full Neuro-Reboot)</option>
+                            <option value="180">180 Days (Brahmacharya Mastery)</option>
+                            <option value="365">365 Days (Year of Sovereignty)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="newProfileFastingHoursSelect" class="block text-xs text-white/80 font-bold mb-1">Fasting Protocol</label>
+                        <select id="newProfileFastingHoursSelect" class="sc-select text-xs py-2">
+                            <option value="16" selected>16:8 Lean Gains (16h)</option>
+                            <option value="18">18:6 Warrior Monk (18h)</option>
+                            <option value="20">20:4 Deep Autophagy (20h)</option>
+                            <option value="24">24h Full Solar Reset</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                    <button type="button" id="cancelCreateProfileModalBtn" class="btn-secondary text-xs py-2 px-3.5">Cancel</button>
+                    <button type="submit" class="btn-gold text-xs py-2 px-4">🚀 Create &amp; Switch to Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Notifications Container -->
     <div id="toastContainer" class="toast-container"></div>
 
@@ -2566,30 +2625,9 @@ async function syncWithNeonDB(showNotification = false) {
         }
 
         if (data && data.profile) {
-            appState.profile = { ...appState.profile, ...data.profile };
-            if (Array.isArray(data.todayHabits)) {
-                appState.completedHabitsToday = data.todayHabits.map((h) => h.habit_code);
-            }
-            if (Array.isArray(data.relapseHistory)) {
-                appState.relapseHistory = data.relapseHistory;
-            }
-            if (Array.isArray(data.journalEntries)) {
-                appState.journalEntries = data.journalEntries;
-            }
+            appState.dbSyncedOnce = true;
             ensureMultiProfileStructures();
-            if (appState.profilesByKey[profileKey]) {
-                appState.profilesByKey[profileKey].profile = { ...appState.profile };
-                appState.profilesByKey[profileKey].completedHabitsToday = [...appState.completedHabitsToday];
-                appState.profilesByKey[profileKey].relapseHistory = [...appState.relapseHistory];
-                appState.profilesByKey[profileKey].journalEntries = [...appState.journalEntries];
-            }
-            if (Array.isArray(data.blogs) && data.blogs.length > 0) {
-                appState.blogs = data.blogs;
-            }
-            if (Array.isArray(data.communityCheckins) && data.communityCheckins.length > 0) {
-                appState.communityCheckins = data.communityCheckins;
-            }
-            ensureMultiProfileStructures();
+
             if (Array.isArray(data.allProfiles) && data.allProfiles.length > 0) {
                 data.allProfiles.forEach((pRow) => {
                     const pk = pRow.profile_key;
@@ -2601,44 +2639,89 @@ async function syncWithNeonDB(showNotification = false) {
                         ...pRow
                     };
                 });
-                populateAllProfileDropdowns();
             }
-            if (Array.isArray(data.allNnnDailyTracker) && data.allNnnDailyTracker.length > 0) {
+
+            appState.profile = { ...appState.profile, ...data.profile };
+            if (Array.isArray(data.todayHabits)) {
+                appState.completedHabitsToday = data.todayHabits.map((h) => h.habit_code);
+            }
+            if (Array.isArray(data.relapseHistory)) {
+                appState.relapseHistory = data.relapseHistory;
+            }
+            if (Array.isArray(data.journalEntries)) {
+                appState.journalEntries = data.journalEntries;
+            }
+
+            if (!appState.profilesByKey[profileKey]) {
+                appState.profilesByKey[profileKey] = createBlankProfileBundle(profileKey, appState.profile.display_name || profileKey);
+            }
+            appState.profilesByKey[profileKey].profile = { ...appState.profile };
+            appState.profilesByKey[profileKey].completedHabitsToday = [...appState.completedHabitsToday];
+            appState.profilesByKey[profileKey].relapseHistory = [...appState.relapseHistory];
+            appState.profilesByKey[profileKey].journalEntries = [...appState.journalEntries];
+
+            populateAllProfileDropdowns();
+
+            if (Array.isArray(data.blogs) && data.blogs.length > 0) {
+                appState.blogs = data.blogs;
+            }
+            if (Array.isArray(data.communityCheckins) && data.communityCheckins.length > 0) {
+                appState.communityCheckins = data.communityCheckins;
+            }
+
+            // Authoritative rebuild of nnnDailyByProfile from NeonDB so deleted/updated rows are 100% accurate
+            if (Array.isArray(data.allNnnDailyTracker)) {
+                const freshNnnByProfile = {};
+                Object.keys(appState.profilesByKey).forEach((pk) => {
+                    freshNnnByProfile[pk] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
+                });
                 data.allNnnDailyTracker.forEach((row) => {
                     const pk = row.profile_key || profileKey;
                     const yr = Number(row.challenge_year || 2026);
-                    if (!appState.nnnDailyByProfile[pk]) appState.nnnDailyByProfile[pk] = {};
-                    if (!appState.nnnDailyByProfile[pk][yr]) appState.nnnDailyByProfile[pk][yr] = {};
-                    appState.nnnDailyByProfile[pk][yr][Number(row.day_number)] = row;
+                    if (!freshNnnByProfile[pk]) {
+                        freshNnnByProfile[pk] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
+                    }
+                    if (!freshNnnByProfile[pk][yr]) freshNnnByProfile[pk][yr] = {};
+                    freshNnnByProfile[pk][yr][Number(row.day_number)] = row;
                 });
-            }
-            if (Array.isArray(data.nnnDailyTracker)) {
-                ensureNnnStateDefaults();
-                const activeYr = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
-                if (!appState.nnnDailyByProfile[profileKey]) appState.nnnDailyByProfile[profileKey] = {};
+                appState.nnnDailyByProfile = freshNnnByProfile;
+            } else if (Array.isArray(data.nnnDailyTracker)) {
+                appState.nnnDailyByProfile[profileKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
                 data.nnnDailyTracker.forEach((row) => {
                     const yr = Number(row.challenge_year || 2026);
                     if (!appState.nnnDailyByProfile[profileKey][yr]) appState.nnnDailyByProfile[profileKey][yr] = {};
                     appState.nnnDailyByProfile[profileKey][yr][Number(row.day_number)] = row;
                 });
-                appState.nnnDailyMap = appState.nnnDailyByProfile[profileKey][activeYr] || {};
-                renderNnnCalendar();
-                renderNnnYearlyStatus();
             }
-            if (Array.isArray(data.allSelfTouchingRecords) && data.allSelfTouchingRecords.length > 0) {
+
+            const activeYr = Number(document.getElementById("nnnMatrixYearSelect")?.value || 2026);
+            if (!appState.nnnDailyByProfile[profileKey]) {
+                appState.nnnDailyByProfile[profileKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
+            }
+            appState.nnnDailyMap = appState.nnnDailyByProfile[profileKey][activeYr] || {};
+            renderNnnCalendar();
+            renderNnnYearlyStatus();
+
+            // Authoritative rebuild of selfTouchingByProfile from NeonDB so cleared/updated dates are 100% accurate
+            if (Array.isArray(data.allSelfTouchingRecords)) {
+                const freshStByProfile = {};
+                Object.keys(appState.profilesByKey).forEach((pk) => {
+                    freshStByProfile[pk] = {};
+                });
                 data.allSelfTouchingRecords.forEach((rec) => {
                     const pk = rec.profile_key || profileKey;
-                    if (!appState.selfTouchingByProfile[pk]) appState.selfTouchingByProfile[pk] = {};
-                    appState.selfTouchingByProfile[pk][rec.record_date] = rec;
+                    if (!freshStByProfile[pk]) freshStByProfile[pk] = {};
+                    freshStByProfile[pk][rec.record_date] = rec;
                 });
-            }
-            if (Array.isArray(data.selfTouchingRecords)) {
-                if (!appState.selfTouchingByProfile[profileKey]) appState.selfTouchingByProfile[profileKey] = {};
+                appState.selfTouchingByProfile = freshStByProfile;
+            } else if (Array.isArray(data.selfTouchingRecords)) {
+                appState.selfTouchingByProfile[profileKey] = {};
                 data.selfTouchingRecords.forEach((rec) => {
                     appState.selfTouchingByProfile[profileKey][rec.record_date] = rec;
                 });
-                renderSelfTouchingCalendar();
             }
+            renderSelfTouchingCalendar();
+
             if (Array.isArray(data.nnnStories) && data.nnnStories.length > 0) {
                 appState.nnnStories = data.nnnStories;
                 renderNnnStories();
@@ -2666,24 +2749,95 @@ async function syncWithNeonDB(showNotification = false) {
     return false;
 }
 
-async function sendNeonAction(action, payload) {
+async function sendNeonAction(action, payload = {}) {
+    const activeKey = String(payload.profileKey || payload.profile_key || appState.profile?.profile_key || "default_monk").trim();
+    ensureMultiProfileStructures();
+    if (appState.profile && appState.profile.profile_key === activeKey) {
+        appState.profilesByKey[activeKey] = {
+            profile: { ...appState.profile },
+            completedHabitsToday: [...(appState.completedHabitsToday || [])],
+            relapseHistory: [...(appState.relapseHistory || [])],
+            journalEntries: [...(appState.journalEntries || [])]
+        };
+    }
     saveLocalState();
+
+    const isSandboxedPreview =
+        window.location.protocol === "file:" ||
+        window.location.protocol === "blob:" ||
+        window.location.protocol === "data:" ||
+        window.location.hostname.includes("googleusercontent.com");
+
+    if (isSandboxedPreview) {
+        return { preview: true };
+    }
+
+    const dot = document.getElementById("dbStatusDot");
+    const label = document.getElementById("dbStatusLabel");
+    const diagEl = document.getElementById("dbDiagnosticOutput");
+
     try {
-        const res = await fetch(`${window.location.origin}/.netlify/functions/api`, {
+        const res = await fetch(`${window.location.origin}/.netlify/functions/api?profileKey=${encodeURIComponent(activeKey)}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
             body: JSON.stringify({
+                ...payload,
                 action,
-                profileKey: appState.profile.profile_key,
-                ...payload
+                profileKey: activeKey
             })
         });
-        if (res.ok) {
-            const data = await res.json();
-            return data;
+
+        const rawText = await res.text();
+        let data = null;
+        try {
+            data = JSON.parse(rawText);
+        } catch (parseErr) {
+            throw new Error(`API returned non-JSON response (HTTP ${res.status}).`);
         }
+
+        if (!res.ok) {
+            const errMsg = (data && (data.error || data.hint)) || `HTTP ${res.status}`;
+            if (diagEl) {
+                diagEl.innerHTML = `<span class="text-red-400 font-bold">✕ NEONDB WRITE ERROR (${action}):</span> ${errMsg}`;
+            }
+            showToast(`NeonDB Error: ${errMsg}`, "error");
+            return null;
+        }
+
+        if (data && data.profile && appState.profile.profile_key === activeKey) {
+            appState.profile = { ...appState.profile, ...data.profile };
+            if (appState.profilesByKey[activeKey]) {
+                appState.profilesByKey[activeKey].profile = { ...appState.profile };
+            }
+            const auraEl = document.getElementById("headerAuraPoints");
+            if (auraEl) auraEl.textContent = appState.profile.aura_points;
+        }
+        if (data && Array.isArray(data.allProfiles)) {
+            data.allProfiles.forEach((pRow) => {
+                const pk = pRow.profile_key;
+                if (!appState.profilesByKey[pk]) {
+                    appState.profilesByKey[pk] = createBlankProfileBundle(pk, pRow.display_name || pk);
+                }
+                appState.profilesByKey[pk].profile = {
+                    ...appState.profilesByKey[pk].profile,
+                    ...pRow
+                };
+            });
+            populateAllProfileDropdowns();
+        }
+        saveLocalState();
+
+        if (dot) dot.className = "status-dot connected";
+        if (label) label.textContent = "NeonDB Connected";
+        if (diagEl) {
+            diagEl.innerHTML = `<span class="text-emerald-400 font-bold">● NEONDB WRITE CONFIRMED (${action})</span><br>Profile Key: <strong>${activeKey}</strong> • Saved at: ${new Date().toLocaleTimeString()}`;
+        }
+        return data;
     } catch (e) {
-        // Fallback handled seamlessly by local state
+        if (diagEl) {
+            diagEl.innerHTML = `<span class="text-amber-300 font-bold">⚠️ NeonDB Write Fallback (${action}):</span> ${e.message}`;
+        }
+        showToast(`NeonDB Sync Warning: ${e.message}`, "error");
     }
     return null;
 }
@@ -3940,24 +4094,40 @@ document.addEventListener("DOMContentLoaded", () => {
         await switchActiveProfile(typedKey, true);
     });
     document.getElementById("pushToNeonBtn").addEventListener("click", async () => {
-        const typedKey = document.getElementById("profileKeyInput").value.trim() || "default_monk";
+        const rawKey = document.getElementById("profileKeyInput").value.trim() || "default_monk";
+        const typedKey = rawKey.replace(/\s+/g, "_").toLowerCase();
         const typedName = document.getElementById("displayNameInput").value.trim() || "Sovereign Initiate";
-        appState.profile.profile_key = typedKey;
-        appState.profile.display_name = typedName;
         ensureMultiProfileStructures();
-        appState.profilesByKey[typedKey] = {
-            profile: { ...appState.profile },
-            completedHabitsToday: [...(appState.completedHabitsToday || [])],
-            relapseHistory: [...(appState.relapseHistory || [])],
-            journalEntries: [...(appState.journalEntries || [])]
-        };
+
+        const isNewProfile = !appState.profilesByKey[typedKey];
+        if (isNewProfile) {
+            const freshBundle = createBlankProfileBundle(typedKey, typedName);
+            appState.profilesByKey[typedKey] = freshBundle;
+            appState.nnnDailyByProfile[typedKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
+            appState.selfTouchingByProfile[typedKey] = {};
+            appState.profile = { ...freshBundle.profile };
+            appState.completedHabitsToday = [];
+            appState.relapseHistory = [];
+            appState.journalEntries = [];
+        } else {
+            appState.profile.profile_key = typedKey;
+            appState.profile.display_name = typedName;
+            appState.profilesByKey[typedKey].profile = { ...appState.profile };
+        }
+
         populateAllProfileDropdowns();
         saveLocalState();
-        const res = await sendNeonAction("update_profile", appState.profile);
+        renderAll();
+        renderNnnCalendar();
+        renderNnnYearlyStatus();
+        renderSelfTouchingCalendar();
+
+        const res = await sendNeonAction(isNewProfile ? "create_profile" : "update_profile", {
+            ...appState.profile,
+            profileKey: typedKey
+        });
         if (res) {
-            showToast("Profile state saved to NeonDB PostgreSQL!", "success");
-        } else {
-            showToast("State saved locally (Connect DATABASE_URL on Netlify for cloud sync).", "info");
+            showToast(`${isNewProfile ? "Created" : "Updated"} profile "${typedKey}" (${typedName}) in NeonDB PostgreSQL!`, "success");
         }
     });
 
@@ -4547,7 +4717,7 @@ function ensureMultiProfileStructures() {
     const seeded = buildSeededMultiProfileData();
     if (!appState.profilesByKey || typeof appState.profilesByKey !== "object") {
         appState.profilesByKey = seeded.profilesByKey;
-    } else {
+    } else if (!appState.dbSyncedOnce) {
         Object.keys(seeded.profilesByKey).forEach((pk) => {
             if (!appState.profilesByKey[pk]) {
                 appState.profilesByKey[pk] = seeded.profilesByKey[pk];
@@ -4556,8 +4726,8 @@ function ensureMultiProfileStructures() {
     }
 
     if (!appState.nnnDailyByProfile || typeof appState.nnnDailyByProfile !== "object") {
-        appState.nnnDailyByProfile = seeded.nnnDailyByProfile;
-    } else {
+        appState.nnnDailyByProfile = appState.dbSyncedOnce ? {} : seeded.nnnDailyByProfile;
+    } else if (!appState.dbSyncedOnce) {
         Object.keys(seeded.nnnDailyByProfile).forEach((pk) => {
             if (!appState.nnnDailyByProfile[pk]) {
                 appState.nnnDailyByProfile[pk] = seeded.nnnDailyByProfile[pk];
@@ -4572,8 +4742,8 @@ function ensureMultiProfileStructures() {
     }
 
     if (!appState.selfTouchingByProfile || typeof appState.selfTouchingByProfile !== "object") {
-        appState.selfTouchingByProfile = seeded.selfTouchingByProfile;
-    } else {
+        appState.selfTouchingByProfile = appState.dbSyncedOnce ? {} : seeded.selfTouchingByProfile;
+    } else if (!appState.dbSyncedOnce) {
         Object.keys(seeded.selfTouchingByProfile).forEach((pk) => {
             if (!appState.selfTouchingByProfile[pk]) {
                 appState.selfTouchingByProfile[pk] = seeded.selfTouchingByProfile[pk];
@@ -5810,6 +5980,72 @@ function initNnnHub() {
         document.getElementById(selId)?.addEventListener("change", (e) => {
             switchActiveProfile(e.target.value, true);
         });
+    });
+
+    // Create Custom Profile Modal Handlers
+    const createProfileModal = document.getElementById("createCustomProfileModal");
+    function openCreateProfileModal() {
+        if (!createProfileModal) return;
+        document.getElementById("newProfileKeyInput").value = "";
+        document.getElementById("newProfileDisplayNameInput").value = "";
+        document.getElementById("newProfileTargetDaysSelect").value = "90";
+        document.getElementById("newProfileFastingHoursSelect").value = "16";
+        createProfileModal.classList.remove("hidden");
+    }
+    document.getElementById("openCreateProfileBtnHeader")?.addEventListener("click", openCreateProfileModal);
+    document.getElementById("openCreateProfileBtnDash")?.addEventListener("click", openCreateProfileModal);
+    document.getElementById("closeCreateProfileModalBtn")?.addEventListener("click", () => createProfileModal?.classList.add("hidden"));
+    document.getElementById("cancelCreateProfileModalBtn")?.addEventListener("click", () => createProfileModal?.classList.add("hidden"));
+
+    document.getElementById("createCustomProfileForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const rawKey = document.getElementById("newProfileKeyInput")?.value.trim() || "";
+        const cleanKey = rawKey.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+        const dispName = document.getElementById("newProfileDisplayNameInput")?.value.trim() || cleanKey;
+        const targetDays = Number(document.getElementById("newProfileTargetDaysSelect")?.value || 90);
+        const fastHours = Number(document.getElementById("newProfileFastingHoursSelect")?.value || 16);
+
+        if (!cleanKey) {
+            showToast("Please enter a valid profile key.", "error");
+            return;
+        }
+
+        ensureMultiProfileStructures();
+        const nowIso = new Date().toISOString();
+        const newBundle = createBlankProfileBundle(cleanKey, dispName);
+        newBundle.profile.target_days = targetDays;
+        newBundle.profile.fasting_target_hours = fastHours;
+        newBundle.profile.pmo_start_time = nowIso;
+        newBundle.profile.p_start_time = nowIso;
+        newBundle.profile.mo_start_time = nowIso;
+        newBundle.profile.longest_streak_days = 0;
+        newBundle.profile.aura_points = 100;
+        newBundle.completedHabitsToday = [];
+
+        appState.profilesByKey[cleanKey] = newBundle;
+        appState.nnnDailyByProfile[cleanKey] = { 2023: {}, 2024: {}, 2025: {}, 2026: {}, 2027: {}, 2028: {}, 2029: {}, 2030: {} };
+        appState.selfTouchingByProfile[cleanKey] = {};
+
+        createProfileModal?.classList.add("hidden");
+
+        await sendNeonAction("create_profile", {
+            profileKey: cleanKey,
+            display_name: dispName,
+            pmo_start_time: nowIso,
+            p_start_time: nowIso,
+            mo_start_time: nowIso,
+            longest_streak_days: 0,
+            aura_points: 100,
+            target_days: targetDays,
+            fasting_active: false,
+            fasting_start_time: null,
+            fasting_target_hours: fastHours,
+            blocker_strictness: "strict",
+            custom_blocked_domains: "adultsite.example,triggerhub.example"
+        });
+
+        await switchActiveProfile(cleanKey, false);
+        showToast(`Created custom profile "${cleanKey}" (${dispName}) in NeonDB sc_profiles!`, "success");
     });
 
     // NNN Matrix Year & Elapsed Lock Reference Mode Controls
