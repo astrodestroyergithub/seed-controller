@@ -23,6 +23,52 @@ const VALID_SELF_TOUCHING_STATUSES = [
     "Drink Own Cum"
 ];
 
+const SELF_TOUCHING_CODE_MAP = {
+    ST_01: "No Sexual Activity",
+    ST_02: "Only Gooning",
+    ST_03: "Masturbation With Ejaculation",
+    ST_04: "Masturbation Without Ejaculation",
+    ST_05: "Penetrative Sex",
+    ST_06: "Oral Sex",
+    ST_07: "Light Couple Play",
+    ST_08: "Drink Partner's Cum",
+    ST_09: "Drink Own Cum",
+    ST_CLEAR: "CLEAR"
+};
+
+function normalizeSelfTouchingStatus(rawStatus, rawCode) {
+    if (rawCode && SELF_TOUCHING_CODE_MAP[String(rawCode).trim()]) {
+        return SELF_TOUCHING_CODE_MAP[String(rawCode).trim()];
+    }
+    const s = String(rawStatus || "").trim();
+    if (!s) return "";
+    if (SELF_TOUCHING_CODE_MAP[s]) return SELF_TOUCHING_CODE_MAP[s];
+    if (s.toUpperCase() === "CLEAR") return "CLEAR";
+
+    // Strip any leading emoji or symbol if present and normalize apostrophes
+    const cleaned = s
+        .replace(/^[^\wA-Za-z]+/, "")
+        .replace(/[\u2018\u2019`]/g, "'")
+        .trim()
+        .toLowerCase();
+
+    for (const valid of VALID_SELF_TOUCHING_STATUSES) {
+        if (valid.toLowerCase() === cleaned) {
+            return valid;
+        }
+    }
+    if (cleaned.includes("no sexual") || cleaned.includes("no intimate")) return "No Sexual Activity";
+    if (cleaned.includes("only gooning") || cleaned === "gooning") return "Only Gooning";
+    if (cleaned.includes("without ejaculation")) return "Masturbation Without Ejaculation";
+    if (cleaned.includes("with ejaculation")) return "Masturbation With Ejaculation";
+    if (cleaned.includes("penetrative")) return "Penetrative Sex";
+    if (cleaned.includes("oral")) return "Oral Sex";
+    if (cleaned.includes("light couple")) return "Light Couple Play";
+    if (cleaned.includes("partner")) return "Drink Partner's Cum";
+    if (cleaned.includes("own cum")) return "Drink Own Cum";
+    return s;
+}
+
 let schemaInitialized = false;
 
 async function ensureSchema() {
@@ -129,26 +175,14 @@ async function ensureSchema() {
             id SERIAL PRIMARY KEY,
             profile_key VARCHAR(64) NOT NULL DEFAULT 'default_monk',
             record_date DATE NOT NULL,
-            activity_status VARCHAR(64) NOT NULL CHECK (
-                activity_status IN (
-                    'No Sexual Activity',
-                    'Only Gooning',
-                    'Masturbation With Ejaculation',
-                    'Masturbation Without Ejaculation',
-                    'Penetrative Sex',
-                    'Oral Sex',
-                    'Light Couple Play',
-                    'Drink Partner''s Cum',
-                    'Drink Own Cum'
-                )
-            ),
+            activity_status VARCHAR(64) NOT NULL,
             notes VARCHAR(255) DEFAULT '',
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             UNIQUE(profile_key, record_date)
         );
     `);
 
-    // 2. Self-healing column & constraint migration for pre-existing tables from older schema versions
+    // 2. Self-healing column & constraint migration for sc_nnn_daily_tracker and sc_self_touching_records
     try {
         await pool.query(`
             ALTER TABLE sc_nnn_daily_tracker ADD COLUMN IF NOT EXISTS profile_key VARCHAR(64) NOT NULL DEFAULT 'default_monk';
@@ -157,14 +191,20 @@ async function ensureSchema() {
             ALTER TABLE sc_nnn_daily_tracker ADD COLUMN IF NOT EXISTS urge_level INTEGER NOT NULL DEFAULT 2;
             ALTER TABLE sc_nnn_daily_tracker ADD COLUMN IF NOT EXISTS trigger_note VARCHAR(220) DEFAULT '';
             ALTER TABLE sc_nnn_daily_tracker ADD COLUMN IF NOT EXISTS logged_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+            ALTER TABLE sc_self_touching_records ADD COLUMN IF NOT EXISTS profile_key VARCHAR(64) NOT NULL DEFAULT 'default_monk';
+            ALTER TABLE sc_self_touching_records ADD COLUMN IF NOT EXISTS record_date DATE;
+            ALTER TABLE sc_self_touching_records ADD COLUMN IF NOT EXISTS activity_status VARCHAR(64) NOT NULL DEFAULT 'No Sexual Activity';
+            ALTER TABLE sc_self_touching_records ADD COLUMN IF NOT EXISTS notes VARCHAR(255) DEFAULT '';
+            ALTER TABLE sc_self_touching_records ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
         `);
 
-        // Drop ANY legacy 1-column or 2-column unique constraint on sc_nnn_daily_tracker (e.g. UNIQUE(profile_key, day_number) or UNIQUE(challenge_year, day_number))
         await pool.query(`
             DO $$
             DECLARE
                 r RECORD;
             BEGIN
+                -- Fix unique constraints on sc_nnn_daily_tracker
                 FOR r IN (
                     SELECT conname, pg_get_constraintdef(oid) AS def
                     FROM pg_constraint
@@ -176,7 +216,6 @@ async function ensureSchema() {
                     END IF;
                 END LOOP;
 
-                -- Remove any duplicate (profile_key, challenge_year, day_number) rows before adding the 3-column unique constraint
                 DELETE FROM sc_nnn_daily_tracker a
                 USING sc_nnn_daily_tracker b
                 WHERE a.id < b.id
@@ -192,6 +231,44 @@ async function ensureSchema() {
                 ) THEN
                     ALTER TABLE sc_nnn_daily_tracker
                     ADD CONSTRAINT sc_nnn_daily_tracker_profile_year_day_uq UNIQUE (profile_key, challenge_year, day_number);
+                END IF;
+
+                -- Drop any restrictive CHECK constraints on sc_self_touching_records so all 9 statuses always succeed
+                FOR r IN (
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE conrelid = 'sc_self_touching_records'::regclass
+                      AND contype = 'c'
+                ) LOOP
+                    EXECUTE 'ALTER TABLE sc_self_touching_records DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+                END LOOP;
+
+                -- Fix unique constraints on sc_self_touching_records
+                FOR r IN (
+                    SELECT conname, pg_get_constraintdef(oid) AS def
+                    FROM pg_constraint
+                    WHERE conrelid = 'sc_self_touching_records'::regclass
+                      AND contype = 'u'
+                ) LOOP
+                    IF r.def NOT LIKE '%(profile_key, record_date)%' THEN
+                        EXECUTE 'ALTER TABLE sc_self_touching_records DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+                    END IF;
+                END LOOP;
+
+                DELETE FROM sc_self_touching_records a
+                USING sc_self_touching_records b
+                WHERE a.id < b.id
+                  AND a.profile_key = b.profile_key
+                  AND a.record_date = b.record_date;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conrelid = 'sc_self_touching_records'::regclass
+                      AND contype = 'u'
+                      AND pg_get_constraintdef(oid) LIKE '%(profile_key, record_date)%'
+                ) THEN
+                    ALTER TABLE sc_self_touching_records
+                    ADD CONSTRAINT sc_self_touching_records_profile_date_uq UNIQUE (profile_key, record_date);
                 END IF;
             END $$;
         `);
@@ -364,7 +441,6 @@ async function ensureSchema() {
             `);
         }
 
-        // Only seed sc_nnn_daily_tracker when the table has no multi-profile records yet
         const nnnProfileCheck = await pool.query(`SELECT COUNT(DISTINCT profile_key)::int AS p_cnt FROM sc_nnn_daily_tracker`);
         if (nnnProfileCheck.rows[0].p_cnt < 2) {
             await pool.query(`
@@ -1019,10 +1095,10 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ story: stRes.rows[0] }) };
         }
 
-        // 9. Profile-Scoped Self-Touching & Sexual Activity Records Calendar (With Elapsed Date Immutability Check)
+        // 9. Profile-Scoped Self-Touching & Sexual Activity Records Calendar (With Status Code & Elapsed Date Immutability Check)
         if (action === "save_self_touching_record") {
             const recordDate = String(body.record_date || "").trim();
-            const activityStatus = String(body.activity_status || "").trim();
+            const activityStatus = normalizeSelfTouchingStatus(body.activity_status, body.status_code);
             const notes = String(body.notes || "").trim();
 
             if (!/^\d{4}-\d{2}-\d{2}$/.test(recordDate)) {
@@ -1049,10 +1125,22 @@ exports.handler = async (event) => {
                     `DELETE FROM sc_self_touching_records WHERE profile_key = $1 AND record_date = $2::date`,
                     [targetProfile, recordDate]
                 );
+                const updatedListRes = await pool.query(
+                    `SELECT id, profile_key, TO_CHAR(record_date, 'YYYY-MM-DD') AS record_date, activity_status, notes, updated_at
+                     FROM sc_self_touching_records
+                     WHERE profile_key = $1
+                     ORDER BY record_date ASC`,
+                    [targetProfile]
+                );
                 return {
                     statusCode: 200,
                     headers: HEADERS,
-                    body: JSON.stringify({ deleted: true, profile_key: targetProfile, record_date: recordDate })
+                    body: JSON.stringify({
+                        deleted: true,
+                        profile_key: targetProfile,
+                        record_date: recordDate,
+                        selfTouchingRecords: updatedListRes.rows
+                    })
                 };
             }
 
@@ -1061,7 +1149,7 @@ exports.handler = async (event) => {
                     statusCode: 400,
                     headers: HEADERS,
                     body: JSON.stringify({
-                        error: `Invalid activity_status. Allowed values: ${VALID_SELF_TOUCHING_STATUSES.join(", ")}`
+                        error: `Invalid activity_status "${activityStatus}". Allowed values: ${VALID_SELF_TOUCHING_STATUSES.join(", ")}`
                     })
                 };
             }
@@ -1075,10 +1163,21 @@ exports.handler = async (event) => {
                 [targetProfile, recordDate, activityStatus, notes]
             );
 
+            const updatedListRes = await pool.query(
+                `SELECT id, profile_key, TO_CHAR(record_date, 'YYYY-MM-DD') AS record_date, activity_status, notes, updated_at
+                 FROM sc_self_touching_records
+                 WHERE profile_key = $1
+                 ORDER BY record_date ASC`,
+                [targetProfile]
+            );
+
             return {
                 statusCode: 200,
                 headers: HEADERS,
-                body: JSON.stringify({ record: recRes.rows[0] })
+                body: JSON.stringify({
+                    record: recRes.rows[0],
+                    selfTouchingRecords: updatedListRes.rows
+                })
             };
         }
 
